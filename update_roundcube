@@ -1,0 +1,97 @@
+#!/bin/sh
+
+# Configuration
+RC_VER="1.5.8"
+TARGET_DIR="/usr/local/cwpsrv/var/services/roundcube"
+SRC_DIR="/usr/local/src/roundcubemail-${RC_VER}"
+PHP_BIN="/usr/local/cwp/php71/bin/php"
+LOG_FILE="/var/log/cwp-rc-update.log"
+INISET_FILE="$TARGET_DIR/program/include/iniset.php"
+
+# 1. Root check
+if [ "$(id -u)" -ne 0 ]; then
+   echo "This script must be run as root." >> "$LOG_FILE" 2>&1
+   exit 1
+fi
+
+# ==================================================
+# INTL EXTENSION CHECK & INSTALLATION
+# ==================================================
+
+# Path definitions for better readability
+INTL_SO="/usr/local/cwp/php71/lib/php/extensions/no-debug-non-zts-20170718/intl.so"
+INTL_INI="/usr/local/cwp/php71/php.d/intl.ini"
+
+# Check if either the .so extension or .ini file is missing
+if [ ! -f "$INTL_SO" ] || [ ! -f "$INTL_INI" ]; then
+    echo "INTL extension or configuration is missing. Starting installation..."
+    echo "=================================================="
+    
+	yum -y update ca-certificates
+	rpm -ivh http://static.cdn-cwp.com/files/mail/libicu69-69.1-4.el7.x86_64.rpm
+	mkdir -p /usr/local/cwp/php71/php.d
+
+	yum -y install libicu libicu-devel
+	rm -f "$INTL_SO"
+	wget -P /usr/local/cwp/php71/lib/php/extensions/no-debug-non-zts-20170718 http://static.cdn-cwp.com/files/mail/intl.so 
+	chmod 755 "$INTL_SO"
+
+	rm -f "$INTL_INI"
+	touch "$INTL_INI"
+	echo "extension=intl" > "$INTL_INI"
+
+	echo "INTL installation completed successfully."
+
+	# Restart web server
+	/scripts/restart_cwpsrv
+else
+    echo "INTL extension and intl.ini already exist. Skipping INTL installation."
+fi
+
+# 2. Version Check (The "Source of Truth")
+if [ -f "$INISET_FILE" ]; then
+    # Extract version directly from Roundcube PHP code
+    INSTALLED_VER=$(grep "define('RCMAIL_VERSION'" "$INISET_FILE" | cut -d"'" -f4)
+    
+    # If versions match, exit silently
+    if [ "$INSTALLED_VER" = "$RC_VER" ]; then
+        echo "Roundcube $RC_VER is already installed. Nothing to do." >> "$LOG_FILE" 2>&1
+        exit 0
+    fi
+else
+    echo "Roundcube not found at expected location. Proceeding with installation..." >> "$LOG_FILE" 2>&1
+fi
+
+# 3. Update Procedure
+echo "Starting Roundcube update to $RC_VER on $(date)" >> "$LOG_FILE" 2>&1
+
+mkdir -p "$SRC_DIR"
+cd /usr/local/src || exit
+
+# Download
+wget -q "http://static.cdn-cwp.com/files/mail/roundcubemail-${RC_VER}-complete.tar.gz" -O roundcubemail.tar.gz
+if [ $? -ne 0 ]; then
+    echo "Download failed" >> "$LOG_FILE" 2>&1
+    exit 1
+fi
+
+# Extract
+tar -xf roundcubemail.tar.gz -C "$SRC_DIR" --strip-components=1
+
+# Patch the install script for the correct PHP path
+sed -i "s|/usr/bin/env php|$PHP_BIN|g" "$SRC_DIR/bin/installto.sh"
+
+# Run update in non-interactive mode
+"$SRC_DIR/bin/installto.sh" -y "$TARGET_DIR" >> "$LOG_FILE" 2>&1
+
+# Cleanup
+rm -rf "$SRC_DIR" roundcubemail.tar.gz
+
+# fix Permissions
+chmod 755 /usr/local/cwpsrv/var/services/roundcube/temp
+chmod 755 /usr/local/cwpsrv/var/services/roundcube/logs
+
+# Restart web server
+/scripts/restart_cwpsrv
+
+echo "Update successfully completed." >> "$LOG_FILE" 2>&1

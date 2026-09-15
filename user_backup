@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+# BACKUP SCRIPT FOR USER FILES AND MYSQL DATABASES
+# http://centos-webpanel.com
+#
+#
+
+USERNAME=$1
+BKPDATE=`date +%F`
+GETHOMEDIR=`grep $USERNAME /etc/passwd|awk -F: {'print $6'}`
+#QUERYCODE="SELECT User FROM mysql.user where User like \""$USERNAME"_%\""
+QUERYCODE="show databases like \""$USERNAME"_%\""
+#MYSQLPWD=`grep password= /root/.my.cnf|awk -F= {'print $2'}`
+
+if [ ! -e "$GETHOMEDIR/backups"  ];then
+	mkdir -p "$GETHOMEDIR"/backups
+	chown "$USERNAME.$USERNAME" "$GETHOMEDIR"/backups
+fi
+
+if [ ! -e "$GETHOMEDIR/backups/mysql"  ];then
+        mkdir -p "$GETHOMEDIR"/backups/mysql
+        chown "$USERNAME.$USERNAME" "$GETHOMEDIR"/backups/mysql
+fi
+
+if [ ! -e "$GETHOMEDIR/backups/mysql/$BKPDATE"  ];then
+        mkdir -p "$GETHOMEDIR/backups/mysql/$BKPDATE"
+        chown "$USERNAME.$USERNAME" "$GETHOMEDIR/backups/mysql/$BKPDATE"
+fi
+
+# MySQL Backup
+for i in `mysql --defaults-extra-file=/root/.my.cnf --skip-column-names -e "$QUERYCODE" -B`; do mysqldump --defaults-extra-file=/root/.my.cnf $i | gzip > "$GETHOMEDIR/backups/mysql/$BKPDATE/$i".sql.gz; chown "$USERNAME.$USERNAME" "$GETHOMEDIR/backups/mysql/$BKPDATE/$i".sql.gz;done
+
+# Files Backup
+su "$USERNAME" -c "cd $GETHOMEDIR;nice -n 19 tar -pczf backups/"$BKPDATE"_"$USERNAME".tar.gz * --exclude 'backups'" -s "/bin/bash"

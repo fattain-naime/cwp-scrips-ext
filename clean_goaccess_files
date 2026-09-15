@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# 1. Check if the argument (number of months) is provided
+if [ -z "$1" ]; then
+    echo "--------------------------------------------------------"
+    echo "ERROR: No month count provided!"
+    echo "Usage: $0 [number_of_months]"
+    echo "Example: $0 6 (this will delete files older than 6 months)"
+    echo "--------------------------------------------------------"
+    exit 1
+fi
+
+# 2. Set variables
+# We take the input and approximate it to days (Months * 30)
+MONTHS_LIMIT=$1
+DAYS_LIMIT=$((MONTHS_LIMIT * 30))
+SEARCH_PATH="/home/*/cwp_stats/goaccess"
+
+echo "Starting cleanup of GoAccess reports older than $MONTHS_LIMIT months ($DAYS_LIMIT days)..."
+
+# 3. Find and delete .html files in daily, weekly, and monthly subfolders
+# -type f: target files only
+# -name "*.html": target only html reports
+# -mtime +X: finds files modified more than X days ago
+find $SEARCH_PATH -type f -name "*.html" -mtime +$DAYS_LIMIT -exec rm -f {} \;
+
+echo "Cleanup completed successfully."

@@ -1,0 +1,56 @@
+#!/bin/bash
+echo ""
+echo "CWP MySQL & phpMyAdmin Upgrade Script"
+echo "#######################################"
+echo ""
+
+centosversion=`rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | cut -d"-" -f3 | cut -d"." -f 1 | head -n 1`
+if [ $centosversion -eq "6" ]; then
+
+	MYSQL_VER=`/usr/bin/mysql -V | /bin/sed -ne 's/^.*\([0-9.]\{6\}\).*$/\1/p'`
+
+	if [ ${MYSQL_VER} '>' '5.5' ]; then
+			echo "You are already running a newer version of the MySQL!"
+	else
+			mkdir /home/mysql_bkp
+			cd /home/mysql_bkp
+			echo ""
+			echo "Running MySQL Compressed Backup"
+			echo "#########################################"
+			for I in $(mysql -e 'show databases' -s --skip-column-names); do mysqldump $I | gzip > "$I.sql.gz"; done
+			echo ""
+			echo "MySQL Backup Completed, starting MySQL Upgrade Process"
+			echo "##############################################################"
+			echo ""
+			/bin/rpm --import https://mirror.webtatic.com/yum/RPM-GPG-KEY-webtatic-andy
+			/bin/rpm -Uvh http://mirror.webtatic.com/yum/el6/latest.rpm
+			/usr/bin/yum -y --enablerepo=webtatic install mysql.x86_64 yum-plugin-replace
+			/usr/bin/yum -y --enablerepo=webtatic replace mysql --replace-with mysql55w
+			/bin/sed -ie 's/enabled=1/enabled=0/g' /etc/yum.repos.d/webtatic.repo
+			echo ""
+			echo "MySQL Upgrade Done"
+			echo "########################################"
+			echo `/usr/bin/mysql -V`
+	fi
+
+
+	MYSQL_VER2=`/usr/bin/mysql -V | /bin/sed -ne 's/^.*\([0-9.]\{6\}\).*$/\1/p'`
+	if [ ${MYSQL_VER2} '<' '5.5' ]; then
+			echo "Your MySQL version ${MYSQL_VER} incompatible with latest phpMyAdmin"
+	else
+			cd /usr/local/apache/htdocs
+			/usr/bin/wget http://static.cdn-cwp.com/files/mysql/phpMyAdmin-4.3.13.1-all-languages.zip
+			/usr/bin/unzip phpMyAdmin-4.3.13.1-all-languages.zip
+			cp phpMyAdmin/config.inc.php  phpMyAdmin-4.3.13.1-all-languages/.
+			mv phpMyAdmin phpMyAdmin_backup_$$
+			mv phpMyAdmin-4.3.13.1-all-languages phpMyAdmin
+			chown -R nobody:nobody phpMyAdmin
+			rm -f phpMyAdmin-4.3.13.1-all-languages.zip
+			echo ""
+			echo "phpMyAdmin upgraded"
+	fi
+
+	else
+			echo "Server Version NOT supported!";
+
+fi

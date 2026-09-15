@@ -1,0 +1,143 @@
+#!/bin/bash
+# Script to clear server logs modularly and inspect disk usage based on arguments
+
+# Function to show usage options when no arguments are provided
+show_help() {
+    echo "======================================================="
+    echo "Usage: $0 [option1] [option2] ..."
+    echo "======================================================="
+    echo "Available logging profiles to clean / actions:"
+    echo "  check           - Inspects disk usage across all primary log and data directories"
+    echo "  system          - Cleans core system logs (messages, maillog, root mail)"
+    echo "  apache_domains  - Cleans client individual domain tracking logs"
+    echo "  apache_services - Cleans main Apache service logs and zipped archives"
+    echo "  php             - Cleans PHP-FPM execution log outputs"
+    echo "  tmp             - Cleans stale session hashes and request bodies from /tmp"
+    echo "  acme            - Cleans SSL certificate management logs (.acme.sh)"
+    echo "  cwpsrv          - Cleans CentOS Web Panel internal service tracking logs"
+    echo "  all             - Executes all cleaning profiles simultaneously (excludes check)"
+    echo "======================================================="
+    echo "Example: $0 check apache_domains php"
+}
+
+# Check if at least one argument was passed
+if [ $# -eq 0 ]; then
+    show_help
+    exit 0
+fi
+
+# Action function for disk usage checks
+check_disk_usage() {
+    echo "======================================================="
+    echo "[CHECKING] Current Server Disk Usage Patterns:"
+    echo "======================================================="
+    du -hs /var/log/ 2>/dev/null
+    du -hs /usr/local/apache/logs/ 2>/dev/null
+    du -hs /usr/local/apache/domlogs/ 2>/dev/null
+    du -hs /usr/local/cwp/php71/var/log/ 2>/dev/null
+    du -hs /usr/local/cwpsrv/logs/ 2>/dev/null
+    du -hs /var/spool/ 2>/dev/null
+    du -hs /tmp 2>/dev/null
+    du -hs /root 2>/dev/null
+    du -hs /var/lib/mysql/ 2>/dev/null
+    du -hs /opt 2>/dev/null
+    echo "======================================================="
+}
+
+# Individual cleaning profile functions
+clean_system() {
+    echo "[CLEANING] System Logs..."
+    rm -f /var/log/messages-*
+    rm -f /var/log/maillog-*
+    echo "" > /var/log/messages
+    echo "" > /var/log/maillog
+    echo "" > /var/spool/mail/root
+}
+
+clean_apache_domains() {
+    echo "[CLEANING] Apache Client Domain Logs..."
+    for i in /usr/local/apache/domlogs/*.log; do 
+        [ -f "$i" ] && echo "" > "$i"
+    done
+}
+
+clean_apache_services() {
+    echo "[CLEANING] Main Apache Service Logs..."
+    rm -f /usr/local/apache/logs/*.gz
+    for i in /usr/local/apache/logs/*log; do 
+        [ -f "$i" ] && echo "" > "$i"
+    done
+}
+
+clean_php() {
+    echo "[CLEANING] PHP-FPM Logs..."
+    for i in /opt/alt/php-fpm*/usr/var/log/php-fpm.log; do 
+        [ -f "$i" ] && echo "" > "$i"
+    done
+}
+
+clean_tmp() {
+    echo "[CLEANING] /tmp Directory Junk..."
+    find /tmp/ -type f -name "sess_*" -exec rm -f {} \;
+    rm -f /tmp/202*request_body-*
+}
+
+clean_acme() {
+    echo "[CLEANING] Acme.sh Certificate Management Logs..."
+    if [ -f "/root/.acme.sh/acme.sh.log" ]; then
+        echo "" > /root/.acme.sh/acme.sh.log
+    fi
+}
+
+clean_cwpsrv() {
+    echo "[CLEANING] Regular CWPsrv Web Panel Service Logs..."
+    for i in /usr/local/cwpsrv/logs/*log; do 
+        [ -f "$i" ] && echo "" > "$i"
+    done
+}
+
+# Main loop to parse multiple arguments separated by spaces
+for argument in "$@"; do
+    case "$argument" in
+        check)
+            check_disk_usage
+            ;;
+        system)
+            clean_system
+            ;;
+        apache_domains)
+            clean_apache_domains
+            ;;
+        apache_services)
+            clean_apache_services
+            ;;
+        php)
+            clean_php
+            ;;
+        tmp)
+            clean_tmp
+            ;;
+        acme)
+            clean_acme
+            ;;
+        cwpsrv)
+            clean_cwpsrv
+            ;;
+        all)
+            echo "Executing global cleanup sequence..."
+            clean_system
+            clean_apache_domains
+            clean_apache_services
+            clean_php
+            clean_tmp
+            clean_acme
+            clean_cwpsrv
+            break
+            ;;
+        *)
+            echo "[WARNING] Unknown option: '$argument' (Skipping)"
+            ;;
+    esac
+done
+
+echo "=== Tasks completed successfully! ==="

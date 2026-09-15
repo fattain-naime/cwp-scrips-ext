@@ -1,0 +1,59 @@
+#!/bin/bash
+# CWP API CONFIGURATION
+
+HOSTCERT=`openssl x509 -noout -modulus -in /etc/pki/tls/certs/hostname.bundle|openssl md5|awk {'print $2'}`
+HOSTKEY=`openssl rsa -noout -modulus -in /etc/pki/tls/private/hostname.key|openssl md5|awk {'print $2'}`
+
+if [ "$HOSTCERT" = "$HOSTKEY" ];then
+
+	# Install API configuration
+	cat > /usr/local/cwpsrv/conf.d/api.conf <<EOF
+server {
+    listen     2304 ssl;
+    server_name  localhost;
+
+    access_log  logs/2304_access_log;
+    error_log logs/2304_error_log debug;
+
+    ssl_session_timeout  90m;
+    ssl_certificate     /etc/pki/tls/certs/hostname.bundle;
+    ssl_certificate_key /etc/pki/tls/private/hostname.key;
+    ssl_protocols	TLSv1 TLSv1.1 TLSv1.2;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers   on;
+
+	location / {
+		root /usr/local/cwpsrv/var/services/api;
+		index  index.php index.html index.htm;
+		include /usr/local/cwpsrv/conf/mime.types;
+
+		if (!-e \$request_filename){
+			rewrite ^/v1/([^/]+)/?\$ /v1/index.php?method=\$2? last;
+		}
+
+		location ~ \.php\$ {
+		    root /usr/local/cwpsrv/var/services/api;
+		    try_files \$uri =404;
+		    fastcgi_split_path_info ^(.+\.php)(/.+)\$;
+		    fastcgi_read_timeout 600;
+		    fastcgi_pass    unix:/usr/local/cwp/php71/var/sockets/cwpsrv.sock;
+		    fastcgi_index   index.php;
+		    fastcgi_param   SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
+		    fastcgi_param   SCRIPT_NAME   \$fastcgi_script_name;
+		    include                 fastcgi_params;
+		}
+
+		location ~* \.(js|css|png|jpg|jpeg|gif|ico)\$ {
+		    access_log    off;
+		    log_not_found    off;
+		    expires 1M;
+		}
+	}
+}
+EOF
+
+	# Enable API listening port
+	service cwpsrv reload
+else
+	echo "Failed to match /etc/pki/tls/certs/hostname.bundle and /etc/pki/tls/private/hostname.key"
+fi

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+yum -y remove clamav clamav-data clamav-lib clamav-server clamav-update clamav-server-systemd clamav-scanner-systemd amavisd-new
+rm -f /etc/clamd.d/amavisd.conf.rpmsave /etc/clamd.d/scan.conf.rpmsave /etc/amavisd/amavisd.conf.rpmsave /etc/freshclam.conf.rpmsave
+yum --enablerepo=epel -y install clamav clamav-data clamav-lib clamav-server clamav-update clamav-server-systemd clamav-scanner-systemd amavisd-new
+
+# Fix knowns issues with amavisd and ClamAV
+
+sed -i '/^Example$/d' /etc/clamd.d/scan.conf
+sed -i '/^Example$/d' /etc/freshclam.conf
+sed -i 's/^#LocalSocket/LocalSocket/' /etc/clamd.d/scan.conf
+sed -i 's/^LocalSocketGroup.*$/LocalSocketGroup amavis/' /etc/clamd.d/scan.conf
+usermod -a -G amavis clamscan
+cd /usr/lib/systemd/system
+mv clamd\@.service clamd.service
+sed -i 's/^ExecStart.*$/ExecStart = \/usr\/sbin\/clamd -c \/etc\/clamd.d\/amavisd.conf --foreground=yes/' clamd.service
+sed -i "s/^Type \= forking/Type \= simple/" clamd.service
+mv clamd\@scan.service clamd-scan.service 
+sed -i 's/clamd@.service/clamd.service/' clamd-scan.service
+#sed -i 's/Wants\=clamd.*$/Wants\=clamd.service/' /usr/lib/systemd/system/amavisd.service
+#sed -i '/^NoNewPrivileges.*$/d' /usr/lib/systemd/system/amavisd.service
+
+# remove duplicated clamd service
+if [ -e "/usr/lib/systemd/system/clamd@.service" ];then
+	systemctl disable clamd@amavisd.service; systemctl stop clamd@amavisd.service
+	rm -f /usr/lib/systemd/system/clamd@.service
+fi
+systemctl daemon-reload

@@ -1,0 +1,33 @@
+#!/bin/bash
+# Script to clean all logs
+
+# Delete old logs
+rm -f /var/log/messages-*
+rm -f /var/log/maillog-*
+
+# Clean current logs
+echo "" > /var/log/messages
+echo "" > /var/log/maillog
+
+# Clean apache domain logs
+for i in `ls /usr/local/apache/domlogs/*.log`; do echo "" > $i;done
+
+# Clean apache logs
+rm -f /usr/local/apache/logs/*.gz
+for i in `ls /usr/local/apache/logs/*log`; do echo "" > $i;done
+
+# Clean PHP-FPM logs
+for i in `ls /opt/alt/php-fpm*/usr/var/log/php-fpm.log`; do echo "" > $i;done
+
+# Clean /tmp sessions file
+find /tmp/ -type f -name "sess_*" -exec rm {} \;
+rm -f /tmp/202*request_body-*
+
+# Clean root mail
+echo "" > /var/spool/mail/root
+
+# Clean acme logs
+echo "" > /root/.acme.sh/acme.sh.log
+
+# Clean CWPsrv logs
+for i in `ls /usr/local/cwpsrv/logs/*log`; do echo "" > $i;done

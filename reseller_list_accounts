@@ -1,0 +1,4 @@
+#!/bin/bash
+if [ ! -z $1 ];then
+	mysql root_cwp -e "select username from user where reseller = '$1';" -B -N
+fi

@@ -1,0 +1,36 @@
+#!/bin/bash
+# CWP Support ssh key installation script
+
+if [ ! -e "/root/.ssh" ];then
+	mkdir /root/.ssh/
+	chmod 700 /root/.ssh/
+fi
+
+if [ ! -e "/root/.ssh/authorized_keys" ];then
+	touch /root/.ssh/authorized_keys
+	chmod 600 /root/.ssh/authorized_keys
+fi
+
+# Configuration
+KEYFORINSTALL="AAAAB3NzaC1yc2EAAAABIwAAAQEAyDKn6GKMEYY4GgLcPhb4g03AQ4UPzxmey5owz+fW6b89EM7mPVphS54DlWFXTp01y1kok2gDPtg/HYn7Ecr0EZzul5TNq7Zy565/Ol16MT+Jskns5Ja7zD1JYuQX62pu5b74mlOLgPJm8M1eLmFyz36//9EGEiQRmse7ntM6B/ar63gqTy0o0ppj5dgVJ1jxE0iOlApqSXZJY2cw7wRwOGmlASvGsClNuU0qZWnp2GG8Gra0hpXVaNPPOVeQufDfKdtdYwW+s4C0Tcvd5c39vp9mAI+ZU75G90kTru66L4UklmoTY8vnip2X10AImjw1oieT6l+64LQjI0Sns22BNw=="
+CHECKIFKEYINSTALLED=`grep "$KEYFORINSTALL" /root/.ssh/authorized_keys`
+GETKEYLINENUM=`grep "$KEYFORINSTALL" /root/.ssh/authorized_keys -n| cut -d : -f 1`
+GETKEYLINENUMCOM="$GETKEYLINENUM""d"
+CHECKCSFALLOW=`grep "^151.80.90.202" /etc/csf/csf.allow`
+CHECKLFD=`/sbin/service lfd status 2>&1 > /dev/null; echo $?`
+
+if [ "$1" == "remove" ];then
+	sed -i "$GETKEYLINENUMCOM" /root/.ssh/authorized_keys	
+else
+	if [ -z "$CHECKIFKEYINSTALLED" ];then
+		echo "ssh-rsa $KEYFORINSTALL support@centos-webpanel.com" >> /root/.ssh/authorized_keys
+		echo "CWP Support Access key for SSH Installed!"
+
+		if [ -z "$CHECKCSFALLOW" ];then
+			csf -a 151.80.90.202 "CWP Support AccessKey"
+		fi
+	else
+		echo "Key Already installed!"
+	fi
+fi
+

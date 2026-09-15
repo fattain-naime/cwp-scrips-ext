@@ -1,0 +1,283 @@
+#!/bin/bash
+# This script is for apache only servers without any accounts or domains
+
+help() {
+  echo "Usage: $0 [OPTIONS]
+  -r, --restart       Restart server after changes  [yes|no]  default: no
+  -n, --newip         Set New Shared IP  [111.112.123.124] default: no
+  -e, --email         Set Admin Email  [my@email.com] default: no
+  -t, --hostname      Set New Hostname  [vps1.domain.com] default: no
+
+  -h, --help          Print this help
+
+  Example: sh $0 -r yes --newip 111.112.124.135 --email my@email.com --hostname vps1.domain.com"
+    exit 1
+}
+
+for argument; do
+    delimiter=""
+    case "$argument" in
+        --restart)              arguments="${arguments}-r " ;;
+        --newip)                arguments="${arguments}-n " ;;
+        --email)                arguments="${arguments}-e " ;;
+        --hostname)             arguments="${arguments}-t " ;;
+
+        --help)                 arguments="${arguments}-h " ;;
+        *)                      [[ "${argument:0:1}" == "-" ]] || delimiter="\""
+                                arguments="${arguments}${delimiter}${argument}${delimiter} ";;
+    esac
+done
+eval set -- "$arguments"
+
+while getopts "r:n:e:t:h" Oflags; do
+    case $Oflags in
+        r) restart=$OPTARG ;;            # Restart server after changes
+        n) newip=$OPTARG ;;              # Set New Shared IP 
+        e) email=$OPTARG ;;              # Set Admin Email 
+        t) hostname=$OPTARG ;;           # Set Admin Email
+
+        h) help ;;                       # Print help
+        *) help ;;                       # Print help 
+    esac
+done
+
+# Show help
+if [ -z "$1" ]; then
+    help;
+fi
+
+# Set New Hostname (mostly used for dedicated servers)
+if [ ! -z "$hostname" ]; then
+	if [ "$hostname" != "no" ];then
+    	/bin/hostname $hostname
+    	if [ -e "/usr/bin/hostnamectl" ];then
+			/usr/bin/hostnamectl set-hostname $hostname --static
+		fi
+
+		if [ -e "/etc/sysconfig/network" ];then
+			sed -i 's/.*HOSTNAME.*/HOSTNAME=$hostname/' /etc/sysconfig/network
+		fi
+    fi
+fi
+cnf_hostname=`/bin/hostname -f`
+hostname_short=`/bin/hostname|awk -F. {'print $1'}`
+
+# MySQL root password change
+sh /scripts/mysql_pwd_reset -q
+
+# Update MySQL database data
+mysql --defaults-extra-file=/root/.my.cnf root_cwp -e "DELETE FROM notifications WHERE id !='';"
+
+if [ ! -z "$newip" ]; then
+	if [ "$newip" != "no" ];then
+    	mysql --defaults-extra-file=/root/.my.cnf root_cwp -e "UPDATE settings SET shared_ip = '$newip'";
+        mysql --defaults-extra-file=/root/.my.cnf root_cwp -e "UPDATE user SET ip_address = '$newip'";
+    fi
+fi
+
+if [ ! -z "$email" ]; then
+	if [ "$email" != "no" ];then
+    	mysql --defaults-extra-file=/root/.my.cnf root_cwp -e "UPDATE settings SET root_email = '$email'";
+    fi
+fi
+
+# Change IP for Apache
+rm -f /usr/local/apache/conf/sharedip.conf /usr/local/apache/conf.d/system-redirects.conf
+yum -y remove cwp-httpd; yum -y install cwp-httpd --enablerepo=cwp
+rm -f /usr/local/apache/conf/httpd.conf.rpmsave /usr/local/apache/conf.d/vhosts.conf.rpmsave
+
+# Hostname Certificate - clean data of installer
+rm -f /root/*.csr /root/*.key.org /etc/pki/tls/*.cert /etc/pki/tls/*.key
+rm -f /etc/pki/tls/private/*.key /etc/pki/tls/certs/*.bundle
+cd /etc/pki/tls/certs/;ls /etc/pki/tls/certs/|grep -v ca-bundle|grep "\.crt"|xargs rm -f
+
+# SSL Self signed certificate
+cd /root
+DOMAIN="$cnf_hostname"
+unset PASSPHRASE
+
+# Generate a passphrase
+export PASSPHRASE=$(head -c 500 /dev/urandom | tr -dc a-z0-9A-Z | head -c 128; echo)
+
+# Certificate details; replace items in angle brackets with your own info
+subj="
+C=HR
+ST=Zagreb
+O=CentOS Web Panel
+localityName=HR
+commonName=$DOMAIN
+organizationalUnitName=CentOS Web Panel
+emailAddress=my@cwp.com
+"
+
+# Generate the server private key
+openssl genrsa -des3 -out $DOMAIN.key -passout env:PASSPHRASE 2048
+
+# Generate the CSR
+openssl req \
+-new \
+-batch \
+-subj "$(echo -n "$subj" | tr "\n" "/")" \
+-key $DOMAIN.key \
+-out $DOMAIN.csr \
+-passin env:PASSPHRASE
+cp $DOMAIN.key $DOMAIN.key.org
+
+# Strip the password so we don't have to type it every time we restart Apache
+openssl rsa -in $DOMAIN.key.org -out $DOMAIN.key -passin env:PASSPHRASE
+
+# Generate the cert (good for 10 years)
+openssl x509 -req -days 3650 -in $DOMAIN.csr -signkey $DOMAIN.key -out $DOMAIN.crt
+
+# Save new
+mv /root/$cnf_hostname.key /etc/pki/tls/private/hostname.key
+mv /root/$cnf_hostname.crt /etc/pki/tls/certs/hostname.crt
+cp /etc/pki/tls/certs/hostname.crt /etc/pki/tls/certs/hostname.bundle
+
+# Postfix
+sed -i 's#smtpd_tls_cert_file.*$#smtpd_tls_cert_file = /etc/pki/tls/certs/hostname.bundle#g' /etc/postfix/main.cf
+sed -i 's#smtpd_tls_key_file.*$#smtpd_tls_key_file = /etc/pki/tls/private/hostname.key#g' /etc/postfix/main.cf
+sed -i '/smtp_tls_CAfile.*$/d' /etc/postfix/main.cf
+sed -i '/smtpd_tls_CAfile.*$/d' /etc/postfix/main.cf    
+# Postfix end
+
+# Dovecot
+sed -i 's#ssl_cert.*$#ssl_cert = </etc/pki/tls/certs/hostname.bundle#g' /etc/dovecot/dovecot.conf    
+sed -i 's#ssl_key.*$#ssl_key = </etc/pki/tls/private/hostname.key#g' /etc/dovecot/dovecot.conf
+sed -i '/ssl_ca.*$/d' /etc/dovecot/dovecot.conf
+# Dovecot end
+
+# Apache
+if [[ -f /usr/local/apache/conf.d/hostname-ssl.conf ]]; then
+    sed -i 's#SSLCertificateFile.*$#SSLCertificateFile /etc/pki/tls/certs/hostname.bundle#g' /usr/local/apache/conf.d/hostname-ssl.conf        
+    sed -i 's#SSLCertificateKeyFile.*$#SSLCertificateKeyFile /etc/pki/tls/private/hostname.key#g' /usr/local/apache/conf.d/hostname-ssl.conf
+    sed -i '/SSLCertificateChainFile.*$/d' /usr/local/apache/conf.d/hostname-ssl.conf
+fi
+# Apache end
+
+# nginx
+if [[ -f /etc/nginx/conf.d/hostname-ssl.conf ]]; then
+    sed -i 's#ssl_certificate .*$#ssl_certificate /etc/pki/tls/certs/hostname.bundle;#g' /etc/nginx/conf.d/hostname-ssl.conf
+    sed -i 's#ssl_certificate_key.*$#ssl_certificate_key /etc/pki/tls/private/hostname.key;#g' /etc/nginx/conf.d/hostname-ssl.conf
+fi
+# nginx end
+
+# CWP
+if [[ -f /usr/local/cwpsrv/conf/cwpsrv.conf ]]; then
+    sed -i 's#ssl_certificate .*$#ssl_certificate /etc/pki/tls/certs/hostname.bundle;#g' /usr/local/cwpsrv/conf/cwpsrv.conf
+    sed -i 's#ssl_certificate_key.*$#ssl_certificate_key /etc/pki/tls/private/hostname.key;#g' /usr/local/cwpsrv/conf/cwpsrv.conf
+fi
+if [[ -f /usr/local/cwpsrv/conf.d/user-api.conf ]]; then
+    sed -i 's#ssl_certificate .*$#ssl_certificate /etc/pki/tls/certs/hostname.bundle;#g' /usr/local/cwpsrv/conf.d/user-api.conf
+    sed -i 's#ssl_certificate_key.*$#ssl_certificate_key /etc/pki/tls/private/hostname.key;#g' /usr/local/cwpsrv/conf.d/user-api.conf
+fi
+if [[ -f /usr/local/cwpsrv/conf.d/users.conf ]]; then
+    sed -i 's#ssl_certificate .*$#ssl_certificate /etc/pki/tls/certs/hostname.bundle;#g' /usr/local/cwpsrv/conf.d/users.conf
+    sed -i 's#ssl_certificate_key.*$#ssl_certificate_key /etc/pki/tls/private/hostname.key;#g' /usr/local/cwpsrv/conf.d/users.conf
+fi
+if [[ -f /usr/local/cwpsrv/conf.d/webmail.conf ]]; then
+    sed -i 's#ssl_certificate .*$#ssl_certificate /etc/pki/tls/certs/hostname.bundle;#g' /usr/local/cwpsrv/conf.d/webmail.conf
+    sed -i 's#ssl_certificate_key.*$#ssl_certificate_key /etc/pki/tls/private/hostname.key;#g' /usr/local/cwpsrv/conf.d/webmail.conf
+fi
+# CWP end
+
+# pure-ftpd
+if [[ -f /etc/pure-ftpd/pure-ftpd.conf ]]; then
+    cat /etc/pki/tls/private/hostname.key > /etc/pki/tls/private/hostname.pem
+    cat /etc/pki/tls/certs/hostname.bundle >> /etc/pki/tls/private/hostname.pem
+    chmod 600 /etc/pki/tls/private/hostname.pem
+    sed -i "/^CertFile/d" /etc/pure-ftpd/pure-ftpd.conf
+    sed -i "/^CertFileAndKey/d" /etc/pure-ftpd/pure-ftpd.conf
+    sed -i "/^TLS.*/d" /etc/pure-ftpd/pure-ftpd.conf
+    echo "TLS 1" >> /etc/pure-ftpd/pure-ftpd.conf
+    echo "TLSCipherSuite HIGH:MEDIUM:+TLSv1:!SSLv2:!SSLv3" >> /etc/pure-ftpd/pure-ftpd.conf
+    echo 'CertFile /etc/pki/tls/private/hostname.pem' >> /etc/pure-ftpd/pure-ftpd.conf
+fi
+# pure-ftpd end
+
+# hostname for postfix 
+echo "autoreply.$cnf_hostname vacation:" > /etc/postfix/transport
+
+# hostname for /etc/hosts file
+echo "127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4" > /etc/hosts
+echo "127.0.0.1   autoreply.$cnf_hostname" >> /etc/hosts
+if [ ! -z "$newip" ]; then
+	if [ "$newip" != "no" ];then
+		echo "$newip   $cnf_hostname $hostname_short" >> /etc/hosts
+	fi
+fi
+
+# Postfix
+MAIL_DB_PASS=`cat /dev/urandom| tr -dc 'a-zA-Z0-9' | fold -w 12|head -n1`
+mysql --defaults-extra-file=/root/.my.cnf -e "SET PASSWORD FOR 'postfix'@'localhost' = PASSWORD('$MAIL_DB_PASS');"
+
+sed -i "s/\$db_password.*/\$db_password = '$MAIL_DB_PASS';/g" /etc/postfix/vacation.conf
+sed -i "s/^password.*/password = $MAIL_DB_PASS/g" /etc/postfix/mysql-*.cf
+sed -i "s/\$db_pass_postfix.*/\$db_pass_postfix = '$MAIL_DB_PASS';/g" /usr/local/cwpsrv/htdocs/resources/admin/include/postfix.php
+
+sed -i "s/\$vacation_domain.*/\$vacation_domain = 'autoreply.$cnf_hostname';/g" /etc/postfix/vacation.conf
+sed -i "s/^myhostname.*/myhostname = $cnf_hostname/g" /etc/postfix/main.cf
+
+sed -i "s/^smtpd_tls_key_file.*/smtpd_tls_key_file = \/etc\/pki\/tls\/private\/hostname.key/g" /etc/postfix/main.cf
+sed -i "s/^smtpd_tls_cert_file.*/smtpd_tls_cert_file = \/etc\/pki\/tls\/certs\/hostname.crt/g" /etc/postfix/main.cf
+
+sed -i "s/^result_format.*/result_format = %u#%d@autoreply.$cnf_hostname/g" /etc/postfix/mysql-virtual_vacation.cf
+
+# Dovecot
+sed -i "s/password.*/password=$MAIL_DB_PASS/g" /etc/dovecot/dovecot-*.conf
+
+# Roundcube
+RC_DB_PASS=`cat /dev/urandom| tr -dc 'a-zA-Z0-9' | fold -w 12|head -n1`
+mysql --defaults-extra-file=/root/.my.cnf -e "SET PASSWORD FOR 'roundcube'@'localhost' = PASSWORD('$RC_DB_PASS');"
+sed -i "s|^\(\$config\['db_dsnw'\] =\).*$|\1 \'mysqli://roundcube:${RC_DB_PASS}@localhost/roundcube\';|" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php
+
+# PhpMyAdmin
+PMA_DB_PASS=`cat /dev/urandom| tr -dc 'a-zA-Z0-9' | fold -w 12|head -n1`
+sed -i "s|\['blowfish_secret'\].*'|\['blowfish_secret'\] = '${PMA_DB_PASS}'|" /usr/local/cwpsrv/var/services/pma/config.inc.php
+
+# Clean Log Files
+if [ -e "/var/log/mailllog" ];then 
+    echo "" > /var/log/mailllog
+fi
+
+if [ -e "/var/log/dmesg" ];then 
+    echo "" > /var/log/dmesg
+fi
+
+if [ -e "/var/log/anaconda/anaconda.log" ];then 
+    echo "" > /var/log/anaconda/anaconda.log
+fi
+
+if [ -e "/var/spool/mail/root" ];then 
+    echo "" > /var/spool/mail/root
+fi
+
+# Activate new MySQL passwords
+mysql --defaults-extra-file=/root/.my.cnf -e "flush privileges;"
+for i in postfix dovecot cwpsrv httpd nginx pure-ftpd; do service $i restart ; done
+
+# Get new CWP version
+NEWCWPVER=`curl -Ss "http://centos-webpanel.com/webpanel/versions/el7.txt" |awk {'print $1'}`
+
+chattr -i -R /usr/local/cwpsrv/htdocs/admin 2> /dev/null
+cd /usr/local/cwpsrv/htdocs
+rm -f cwp-el7-$NEWCWPVER.zip
+wget static.cdn-cwp.com/files/cwp/el7/cwp-el7-$NEWCWPVER.zip
+unzip -o cwp-el7-$NEWCWPVER.zip
+rm -f cwp-el7-$NEWCWPVER.zip
+
+cd /usr/local/cwpsrv/var/services/
+rm -f cwp-services.zip
+wget static.cdn-cwp.com/files/cwp/el7/cwp-services.zip
+unzip -o cwp-services.zip
+rm -f cwp-services.zip
+
+# Rebuild Vhosts configuration
+/scripts/cwp_api webservers rebuild_all
+
+# Restart server if defined
+if [ "$restart" = "yes" ]; then
+    echo "restarting server...."
+    shutdown -r now
+fi
+

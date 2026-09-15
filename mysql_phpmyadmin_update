@@ -1,0 +1,44 @@
+#!/bin/bash
+
+current_version=`cat /usr/local/cwpsrv/var/services/pma/README | grep Version | cut -d " " -f 2`
+cwp_latest=`curl -Ss "http://static.cdn-cwp.com/files/mysql/pma.txt"`
+
+if [ "$current_version" != "$cwp_latest" ];then
+	echo "Updating phpMyAdmin from ${current_version} to version ${cwp_latest}"
+	Date=`date "+%d-%m-%Y"`
+
+	
+	cd /usr/local/cwpsrv/var/services/
+	wget http://static.cdn-cwp.com/files/mysql/phpMyAdmin-${cwp_latest}-all-languages.zip
+
+	
+	if [ -e "/usr/local/cwpsrv/var/services/phpMyAdmin-${cwp_latest}-all-languages.zip" ];then
+
+		if [ -e "/usr/local/cwpsrv/var/services/pma" ];then
+			mv /usr/local/cwpsrv/var/services/pma /usr/local/cwpsrv/var/services/pma_$Date.bak
+		fi
+
+		unzip -o -q phpMyAdmin-${cwp_latest}-all-languages.zip
+		rm -f phpMyAdmin-${cwp_latest}-all-languages.zip
+		mv phpMyAdmin-${cwp_latest}-all-languages pma
+		chown -R cwpsvc:cwpsvc pma
+		rm -rf /usr/local/cwpsrv/var/services/pma/setup
+		mv /usr/local/cwpsrv/var/services/pma/config.sample.inc.php /usr/local/cwpsrv/var/services/pma/config.inc.php
+		ran_password=$(</dev/urandom tr -dc A-Za-z0-9 2> /dev/null | head -c32)
+		sed -i "s|\['blowfish_secret'\] = ''|\['blowfish_secret'\] = '${ran_password}'|" /usr/local/cwpsrv/var/services/pma/config.inc.php
+		sed -i "s/$token_mismatch = true;/$token_mismatch = false;/g" /usr/local/cwpsrv/var/services/pma/libraries/common.inc.php
+
+		#pma 5.1.1
+		sed -i "s@^Core::checkTokenRequestParam@//Core::checkTokenRequestParam@g" /usr/local/cwpsrv/var/services/pma/libraries/common.inc.php
+
+		new_version=`cat /usr/local/cwpsrv/var/services/pma/README | grep Version | cut -d " " -f 2`
+		echo "phpMyAdmin Update, new version ${new_version}"
+
+	else
+		echo "Download file NOT found!"
+	fi
+
+	
+else
+	echo "You have the latest PMA version recommended by CWP!"
+fi

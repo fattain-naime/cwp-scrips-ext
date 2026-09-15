@@ -1,0 +1,9 @@
+#!/bin/bash
+# Disable DSO handler for CWP, PHP will run back with suphp
+
+CHECKDSOHANDLER=`/usr/local/apache/bin/httpd -M|grep php[0-9]_module`
+if [ ! -z "$CHECKDSOHANDLER" ];then
+        sed -i "/php[0-9]_module/d" /usr/local/apache/conf/httpd.conf
+fi
+
+/usr/local/apache/bin/apachectl restart

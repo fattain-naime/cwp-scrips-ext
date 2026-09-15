@@ -1,0 +1,23 @@
+#!/bin/bash
+# this script will activate and force open_basedir for all users
+# by activating open_basedir custom php.ini per forlder will be also disabled
+
+
+for USER in $(ls /home);do
+
+	if [ -e "/home/$USER/" ];then
+		if [ ! -f /home/$USER/php.ini ]; then
+		    echo "open_basedir = /home/$USER:/tmp:/var/tmp:/usr/local/lib/php/" >> /home/$USER/php.ini
+		    chmod 0555 /home/$USER/php.ini
+		    chown root.root /home/$USER/php.ini
+		elif ! grep -q "^open_basedir" "/home/$USER/php.ini"; then
+		    echo "open_basedir = /home/$USER:/tmp:/var/tmp:/usr/local/lib/php/" >> /home/$USER/php.ini
+		    chmod 0555 /home/$USER/php.ini
+		    chown root.root /home/$USER/php.ini
+		else
+		    echo "/home/$USER/php.ini already has open_userdir configuration"
+		fi
+	fi
+
+done
+

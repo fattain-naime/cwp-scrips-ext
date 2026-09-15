@@ -1,0 +1,21 @@
+#!/bin/bash
+# CWP script to log all emails sent using php
+
+# Main PHP
+sed -i "s/.*mail.add_x_header.*/mail.add_x_header = On/" /usr/local/php/php.ini
+sed -i "s@.*mail.log.*@mail.log = /usr/local/apache/logs/phpmail.log@" /usr/local/php/php.ini
+
+# PHP Selector
+sed -i "s/.*mail.add_x_header.*/mail.add_x_header = On/" /opt/alt/php*/usr/php/php.ini
+sed -i "s@.*mail.log.*@mail.log = /usr/local/apache/logs/phpmail.log@" /opt/alt/php*/usr/php/php.ini
+
+# Create Log file if not exists
+if [ ! -e "/usr/local/apache/logs/phpmail.log" ];then
+	touch /usr/local/apache/logs/phpmail.log
+fi
+
+# Fix permissions for file, required as executed by php as user
+chmod 666 /usr/local/apache/logs/phpmail.log
+
+# Restart all installed PHP-FPM versions
+/scripts/phpfpm_service_manage restart

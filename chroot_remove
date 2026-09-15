@@ -1,0 +1,94 @@
+#!/bin/bash
+# info: delete user sftp jail
+# options: USER
+
+# Argument definition
+user=$1
+
+# Check centos version
+centosversion=$(rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | cut -d"-" -f3 | cut -d"." -f 1 | head -n 1)
+
+# Defining chroot directory
+chroot="/home/jail/$user"
+
+user_str=$(grep "^$user:" /etc/passwd)
+
+if [ -z "$user_str" ]; then
+    exit
+fi
+#Kill sshd process
+sshd_pid=$(pgrep -x -u $user sshd)
+if [[ $? -eq 0 ]];then
+kill -9 $sshd_pid
+fi
+
+#kill sftp-server
+sftp_pid=$(pgrep -x -u $user sftp-server)
+if [[ $? -eq 0 ]];then
+kill -9 $sftp_pid
+fi
+
+# Defining user homedir
+#home="$(echo $user_str |cut -f 6 -d :)"
+
+# Unmounting user home directory
+mount_dir=$(mount |grep $chroot/home/$user |awk '{print $3}')
+fuser -Mk $mount_dir > /dev/null 2>&1
+umount -f $mount_dir > /dev/null 2>&1
+
+if [ -f /etc/fstab ]; then
+sed -i "/$user/d" /etc/fstab
+fi
+
+if [[ "$centosversion" -eq "7" && ! -f /etc/fstab ]];then
+sed -i "/$user/d" /etc/fstab
+fi
+
+if [[ "$centosversion" -eq "8" && ! -f /etc/fstab ]];then
+sed -i "/$user/d" /etc/fstab
+fi
+
+if [[ "$centosversion" -eq "6" && ! -f /etc/fstab ]]; then
+sed -i "/$user/d" /etc/rc.d/rc.local
+EOF
+fi
+
+#Change user shell to nologin
+usermod -s /sbin/nologin -d /home/$user $user
+
+# Deleting chroot directory
+rm -rf $chroot
+
+# Deleting user from groups
+gpasswd -d $user sftp-only > /dev/null 2>&1
+gpasswd -d $user sftp-ssh > /dev/null 2>&1
+
+#stop mount services
+if [[ "$centosversion" -eq "7" ]];then
+mount_service=$(systemd-escape -p --suffix=mount "$chroot/home/$user/")
+    if [ -f /etc/systemd/system/$mount_service ]; then 
+    systemctl stop $mount_service > /dev/null 2>&1
+    systemctl disable $mount_service > /dev/null 2>&1
+    fi
+fi
+
+if [[ "$centosversion" -eq "8" ]];then
+mount_service=$(systemd-escape -p --suffix=mount "$chroot/home/$user/")
+    if [ -f /etc/systemd/system/$mount_service ]; then 
+    systemctl stop $mount_service > /dev/null 2>&1
+    systemctl disable $mount_service > /dev/null 2>&1
+    fi
+fi
+
+#check for jail success 
+chk_jail="/home/jail/$user/"
+if [ ! -d "$chk_jail" ]; then
+    echo "######################################"
+    echo "Jailed user has been removed successfully"
+    echo "######################################"
+else
+    echo "########################################"
+    echo "Jailed user wasnt removed successfully"
+    echo "########################################"
+fi
+exit

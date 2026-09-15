@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# CWP FreshClam Script
+# powered by CentOS Web Panel
+#
+
+# OLD
+#chown -R clamav.clamav /var/lib/clamav
+#/usr/bin/freshclam --datadir=/var/lib/clamav
+
+# NEW
+echo "Updating ClamAV RPM Packages"
+yum -y update clamav
+echo ""
+echo "Updating ClamAV Virus Database"
+freshclam

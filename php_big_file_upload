@@ -1,0 +1,101 @@
+#!/bin/bash
+# CWP Big File Upload for all php versions
+# Default max execution time is 300
+
+if [ ! -z "$1" ];then
+	BF_SIZE=$1
+
+	if [ "$BF_SIZE" -ge "2" ];then
+
+	BF_UPLOAD_MAX_FILESIZE=$((BF_SIZE))
+	BF_POST_MAX_SIZE=$((BF_SIZE+5))
+	BF_MEMORY_LIMIT=$((BF_SIZE+24))
+	BF_MAX_INPUT_TIME="300"
+	BF_MAX_EXECUTION_TIME="300"
+	APACHE_BF_POST_MAX_SIZE=$((BF_POST_MAX_SIZE*1000000))
+
+	echo "New Configuration:"
+	echo "---------------------"
+	echo "upload_max_filesize = $((BF_UPLOAD_MAX_FILESIZE))M"
+	echo "post_max_size = $((BF_POST_MAX_SIZE))M"
+	echo "memory_limit = $((BF_MEMORY_LIMIT))M"
+	echo "max_input_time = $((BF_MAX_INPUT_TIME))"
+	echo "max_execution_time = $((BF_MAX_EXECUTION_TIME))"
+	echo "---------------------"
+
+	# Setup All PHP selectors CGI/FPM
+	for i in `ls /opt/alt/php*/usr/php/php.ini`;do
+		if [ -e "$i" ];then
+			echo "Editing File: $i"
+			sed -i "s/^upload_max_filesize.*/upload_max_filesize = $((BF_UPLOAD_MAX_FILESIZE))M/g" $i
+			sed -i "s/^post_max_size.*/post_max_size = $((BF_POST_MAX_SIZE))M/g" $i
+			sed -i "s/^memory_limit.*/memory_limit = $((BF_MEMORY_LIMIT))M/g" $i
+			sed -i "s/^max_input_time.*/max_input_time = $((BF_MAX_INPUT_TIME))/g" $i
+			sed -i "s/^max_execution_time.*/max_execution_time = $((BF_MAX_EXECUTION_TIME))/g" $i
+		fi
+	done
+
+	# Restart all active PHP-FPM versions
+	/scripts/phpfpm_service_manage restart
+
+	# Setup Main PHP.ini (PHP Switcher)
+	BF_MAIN_PHP_INI="/usr/local/php/php.ini"
+	echo "Editing File: $BF_MAIN_PHP_INI"
+	sed -i "s/^upload_max_filesize.*/upload_max_filesize = $((BF_UPLOAD_MAX_FILESIZE))M/g" $BF_MAIN_PHP_INI
+	sed -i "s/^post_max_size.*/post_max_size = $((BF_POST_MAX_SIZE))M/g" $BF_MAIN_PHP_INI
+	sed -i "s/^memory_limit.*/memory_limit = $((BF_MEMORY_LIMIT))M/g" $BF_MAIN_PHP_INI
+	sed -i "s/^max_input_time.*/max_input_time = $((BF_MAX_INPUT_TIME))/g" $BF_MAIN_PHP_INI
+	sed -i "s/^max_execution_time.*/max_execution_time = $((BF_MAX_EXECUTION_TIME))/g" $BF_MAIN_PHP_INI
+	echo ""
+
+	if [  ! -z "$2" ];then
+
+		if [ "$2" == "all" ];then
+
+			if [ "$BF_SIZE" -ge "128" ];then
+
+				echo ""
+
+				# CWPPHP php.ini
+				CWP_MAIN_PHP_INI="/usr/local/cwp/php71/php.ini"
+				echo "Editing File: $CWP_MAIN_PHP_INI"
+				sed -i "s/^upload_max_filesize.*/upload_max_filesize = $((BF_UPLOAD_MAX_FILESIZE))M/g" $CWP_MAIN_PHP_INI
+				sed -i "s/^post_max_size.*/post_max_size = $((BF_POST_MAX_SIZE))M/g" $CWP_MAIN_PHP_INI
+				sed -i "s/^memory_limit.*/memory_limit = $((BF_MEMORY_LIMIT))M/g" $CWP_MAIN_PHP_INI
+				sed -i "s/^max_input_time.*/max_input_time = $((BF_MAX_INPUT_TIME))/g" $CWP_MAIN_PHP_INI
+				sed -i "s/^max_execution_time.*/max_execution_time = $((BF_MAX_EXECUTION_TIME))/g" $CWP_MAIN_PHP_INI
+
+				# CWPSRV 
+				echo "Editing File: /usr/local/cwpsrv/conf/cwpsrv.conf"
+				sed -i "s/client_max_body_size.*/client_max_body_size $((BF_POST_MAX_SIZE))M;/g" /usr/local/cwpsrv/conf/cwpsrv.conf
+
+				service cwpsrv restart
+				service cwpsrv-phpfpm restart
+				echo ""
+
+				# Nginx
+				if [ -e "/etc/nginx/nginx.conf" ];then 
+					echo "Editing File: /etc/nginx/nginx.conf"
+					sed -i "s/client_max_body_size.*/client_max_body_size $((BF_POST_MAX_SIZE))M;/g" /etc/nginx/nginx.conf
+					service nginx restart
+					echo ""
+
+				fi
+
+				# Apache
+				echo "Editing File: /usr/local/apache/conf/httpd.conf"
+				sed -i '/^LimitRequestBody/d' /usr/local/apache/conf/httpd.conf
+				grep "LimitRequestBody" /usr/local/apache/conf/httpd.conf 2> /dev/null 1> /dev/null|| echo "LimitRequestBody $((APACHE_BF_POST_MAX_SIZE))" >> /usr/local/apache/conf/httpd.conf
+				service httpd restart
+				echo ""
+			fi
+
+		fi
+	fi
+
+	else
+		echo "Please set the limit higher than 2"
+	fi
+else
+	echo "Please set the limit"
+fi

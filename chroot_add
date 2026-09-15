@@ -1,0 +1,174 @@
+#!/bin/bash
+# info: add user sftp jail
+# options: USER
+# The script enables sftp jailed environment
+# Modified by Evans for CWP
+
+# Argument definition
+user=$1
+
+# Check centos version
+centosversion=$(rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | cut -d"-" -f3 | cut -d"." -f 1 | head -n 1)
+
+#Check for jailkit and install 
+rpm -qa | grep -qw jailkit || yum install -y jailkit --enablerepo=cwp
+
+#check if user is on server
+user_chk=$(grep "^$user:" /etc/passwd)
+if [ -z "$user_chk" ]; then
+    echo "User account not Found on server,Please enter a valid user"
+    exit 1
+fi
+
+#check is User is jailed already
+chk_jail="/home/jail/$user/"
+if [ -e "$chk_jail" ]; then
+    echo "############################################################"
+    echo "User already jailed, Please unjail user before jailing again"
+    echo "############################################################"
+    exit 1
+fi
+
+#Set setuid root
+chmod 4755 /usr/sbin/jk_chrootsh
+
+# set user shell
+usermod -s /usr/sbin/jk_chrootsh "$user"
+
+# Detecting user shell
+ssh_sftp=$(grep "^$user:" /etc/passwd |grep -E "jk_chrootsh")
+ssh_sftp1=$(grep "^$user:" /etc/passwd |grep -E "bash")
+ssh_sftp2=$(grep "^$user:" "$chroot"/etc/passwd |grep -E "jk_lsh")
+
+
+# Defining user homedir
+home=$(grep "^$user:" /etc/passwd | cut -f6 -d:)
+
+# Defining chroot directory
+chroot="/home/jail/$user"
+
+# Adding chroot directory
+if [ ! -d "$chroot/$home" ]; then
+    mkdir -p "$chroot"/"$home"
+    chown -R root:root "$chroot"
+    chown "$user":"$user" "$chroot"/"$home"
+fi
+
+# Getting user selected shell: if it's bash the jailkit script will be executed, otherwise it will continue
+if [ -n "$ssh_sftp" ]; then
+    /usr/sbin/jk_init -f -j "$chroot" basicshell editors extendedshell netutils ssh sftp scp git jk_lsh 
+    /usr/sbin/jk_cp -f -j "$chroot" /usr/bin/id
+
+    # Jailing user
+    /usr/sbin/jk_jailuser -m -v -j "$chroot" "$user" > /dev/null 2>&1
+
+    # Creating the tmp directory 
+    mkdir -p "$chroot"/tmp
+    chown "$user":"$user" "$chroot"/tmp
+
+    JAILUID=$(id -u "$user")
+    JAILGID=$(id -g "$user")
+
+    echo "Creating Required Internal Jail Passwd and Group Files"
+    echo "$user:x:${JAILUID}:${JAILUID}::/home/$user:/bin/bash" >> "$chroot"/etc/passwd
+    echo "$user:x:${JAILGID}:" >> "$chroot"/etc/group
+    echo
+    echo 'PS1="\u@\h [\t]> "' >> /home/"$user"/.bash_profile
+fi
+
+# Getting user selected shell: if it's bash add user to sftp and ssh group, otherwise add user to sftp only group
+
+grep -qw "^sftp-ssh:" /etc/group || groupadd sftp-ssh > /dev/null 2>&1
+grep -qw "^sftp-only:" /etc/group || groupadd sftp-only > /dev/null 2>&1
+
+if [ -z "$ssh_sftp1" ]; then
+    usermod -a -G sftp-only "$user"
+else
+    usermod -a -G sftp-ssh "$user"
+fi
+
+if [ -z "$ssh_sftp2" ]; then
+    sed -i "/jk_lsh/d" "$chroot"/etc/passwd
+fi
+
+# Mouting user home directory
+if [ -z "$(mount |grep "$chroot"/home/"$user")" ]; then
+    mount -o bind /home/"$user" "$chroot"/home/"$user"
+fi
+
+#Mount in /etc/fstab or create mount file
+if [[ "$centosversion" -eq "6" && -s /etc/fstab ]]; then
+    echo "/home/$user $chroot/home/$user none bind,nobootwait 0 0" >> /etc/fstab
+fi
+
+if [[ "$centosversion" -eq "7" && -s /etc/fstab ]]; then
+    echo "/home/$user $chroot/home/$user none bind,nobootwait 0 0" >> /etc/fstab
+fi
+
+if [[ "$centosversion" -eq "8" && -s /etc/fstab ]]; then
+    echo "/home/$user $chroot/home/$user none bind,nobootwait 0 0" >> /etc/fstab
+fi
+
+if [[ "$centosversion" -eq "6" && ! -f /etc/fstab ]]; then
+cat >> /etc/rc.d/rc.local <<EOF
+mount --bind /home/$user $chroot/home/$user
+EOF
+fi
+
+if [[ "$centosversion" -eq "7" && ! -f /etc/fstab ]]; then 
+mount_service=$(systemd-escape -p --suffix=mount "$chroot/home/$user/")
+cat > /etc/systemd/system/"$mount_service" <<EOF
+[Unit]
+Description=systemd mount unit 
+  
+[Mount]
+What=/home/$user
+Where=$chroot/home/$user
+Type=none
+Options=bind
+  
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl start "$mount_service" > /dev/null 2>&1
+systemctl enable "$mount_service" > /dev/null 2>&1
+fi
+
+if [[ "$centosversion" -eq "8" && ! -f /etc/fstab ]]; then 
+mount_service=$(systemd-escape -p --suffix=mount "$chroot/home/$user/")
+cat > /etc/systemd/system/"$mount_service" <<EOF
+[Unit]
+Description=systemd mount unit 
+  
+[Mount]
+What=/home/$user
+Where=$chroot/home/$user
+Type=none
+Options=bind
+  
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl start "$mount_service" > /dev/null 2>&1
+systemctl enable "$mount_service" > /dev/null 2>&1
+fi
+
+#check for jail success 
+chk_jail="/home/jail/$user/home/$user"
+if [ -d "$chk_jail" ]; then
+    chown "$user":"$user" "$chk_jail"
+    find "$chk_jail"/ -type f -exec chown "$user"."$user" {} \;
+    find "$chk_jail"/ -type f -exec chmod 644 {} \;
+    find "$chk_jail"/ -type d -exec chown "$user"."$user" {} \;
+    find "$chk_jail"/ -type d -exec chmod 755 {} \;
+    echo "######################################"
+    echo "User has been jailed successfully"
+    echo "######################################"
+else
+    echo "########################################"
+    echo "User wasnt jailed successfully"
+    echo "########################################"
+fi
+exit

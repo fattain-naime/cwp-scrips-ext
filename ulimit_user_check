@@ -1,0 +1,25 @@
+#!/bin/bash
+
+CWPUSER=$1
+
+if [ -z "$1" ];then
+	echo "ERROR: username not set"
+	exit 1
+fi
+
+#GET_ALL_LIMITS=`su $CWPUSER -c "grep 'open files\|processes\|pending signals' /proc/self/limits|cut -c27-38" -s /bin/bash`
+
+# SOFT LIMITS
+#GET_LIMIT_NPROC=`su $CWPUSER -c "grep 'processes' /proc/self/limits|cut -c27-38" -s /bin/bash`
+#GET_LIMIT_OPENFILES=`su $CWPUSER -c "grep 'open files' /proc/self/limits|cut -c27-38" -s /bin/bash`
+
+# HARD LIMITS
+GET_LIMIT_NPROC=`su $CWPUSER -c "grep 'processes' /proc/self/limits|cut -c48-68" -s /bin/bash`
+GET_LIMIT_OPENFILES=`su $CWPUSER -c "grep 'open files' /proc/self/limits|cut -c48-68" -s /bin/bash`
+
+USAGE_OPENFILES=`lsof -u $CWPUSER | tail -n +2 | awk {'print $9'} | wc -l`
+USAGE_NPROC=`ps --no-headers -U $CWPUSER -u $CWPUSER u | wc -l`
+
+echo "NPROC: ${USAGE_NPROC}/${GET_LIMIT_NPROC}"
+echo "OPENFILES: ${USAGE_OPENFILES}/${GET_LIMIT_OPENFILES}"
+

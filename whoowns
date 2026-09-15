@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+##################################
+# CentOS Web Panel SCRIPT's
+###################################
+VER="1.1"
+NO_COLOUR="\e[39m"
+COLOR="\e[33m"
+DOMAIN=$1
+CHK_USR=`mysql -Droot_cwp -e "select username from user where domain='$DOMAIN';" -B|sed '1d'`
+CHK_DOMAINS=`mysql -Droot_cwp -e "select user from domains where domain='$DOMAIN';" -B|sed '1d'|uniq`
+#CHK_SUBDOMAINS=`mysql -Droot_cwp -e "select user from subdomains where domain='$DOMAIN';" -B|sed '1d'|uniq`
+CHK_SUBDOMAINS=`mysql -Droot_cwp -e "select user from root_cwp.subdomains WHERE CONCAT(subdomain,'.',domain)='$DOMAIN';" -B|sed '1d'|uniq`
+CHK_RESELLER=`mysql -Droot_cwp -e "select reseller from user where domain='$DOMAIN';" -B|sed '1d'|uniq`
+echo -e $COLOR"Checking User Accounts:"$NO_COLOUR
+echo $CHK_USR
+echo -e $COLOR"Checking Addon Domains:"$NO_COLOUR
+echo $CHK_DOMAINS
+echo -e $COLOR"Checking SubDomains:"$NO_COLOUR
+echo $CHK_SUBDOMAINS
+echo -e $COLOR"Checking Reseller:"$NO_COLOUR
+echo $CHK_RESELLER

@@ -1,0 +1,60 @@
+#!/bin/bash
+# Script to include all SSL certs from /etc/pki/tls/certs in dovecot and postfix conf
+
+if [ -e "/etc/postfix/vmail_ssl.map" ];then
+	mv /etc/postfix/vmail_ssl.map /etc/postfix/vmail_ssl.map.bkp
+fi
+
+if [ -e "/etc/dovecot/sni.conf" ];then
+	mv /etc/dovecot/sni.conf /etc/dovecot/sni.conf.bkp
+fi
+
+cd /etc/pki/tls/private/
+for i in `ls *.key`;do 
+	get_domain=`echo $i|sed s/.key//`
+	check_domain=`grep "^$get_domain " /etc/postfix/vmail_ssl.map`
+
+	if [ -z "$check_domain" ];then
+
+		if [ -e "/etc/pki/tls/private/$get_domain.key" ];then
+			if [ -e "/etc/pki/tls/certs/$get_domain.bundle" ];then
+
+				check_maildomain=`grep "^mail.$get_domain " /etc/postfix/vmail_ssl.map`
+
+				# Generate conf file
+				echo "$get_domain /etc/pki/tls/private/$get_domain.key /etc/pki/tls/certs/$get_domain.bundle" >> /etc/postfix/vmail_ssl.map
+				echo "mail.$get_domain /etc/pki/tls/private/$get_domain.key /etc/pki/tls/certs/$get_domain.bundle" >> /etc/postfix/vmail_ssl.map
+
+				cat >> /etc/dovecot/sni.conf <<EOF
+local_name "$get_domain mail.$get_domain" {
+	ssl_cert = </etc/pki/tls/certs/$get_domain.bundle
+	ssl_key = </etc/pki/tls/private/$get_domain.key
+}
+EOF
+			else
+				echo "Domain bundle NOT found: /etc/pki/tls/certs/$get_domain.bundle"
+			fi
+		else
+			echo "Domain key NOT found: /etc/pki/tls/private/$get_domain.key"
+		fi
+	fi
+done
+
+# Include postfix conf
+
+if [ -e "/etc/postfix/vmail_ssl.map" ];then
+	grep "/etc/postfix/vmail_ssl.map" /etc/postfix/main.cf || echo "tls_server_sni_maps = hash:/etc/postfix/vmail_ssl.map" >> /etc/postfix/main.cf
+	postmap -F hash:/etc/postfix/vmail_ssl.map
+	service postfix restart
+fi
+
+# Include dovecot conf
+if [ -e "/etc/dovecot/sni.conf" ];then
+	grep "/etc/dovecot/sni.conf" /etc/dovecot/dovecot.conf || echo '!include_try /etc/dovecot/sni.conf' >> /etc/dovecot/dovecot.conf
+	service dovecot restart
+fi
+
+# Postfix 3.4 fix
+if [ ! -e "/etc/postfix/postfix-files" ];then
+	touch /etc/postfix/postfix-files
+fi

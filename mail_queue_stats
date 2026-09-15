@@ -1,0 +1,9 @@
+#!/bin/bash
+# Show status of the postfix mail queue
+
+for q in maildrop incoming hold active deferred
+
+do
+    count=$(find /var/spool/postfix/$q ! -type d -print | wc -l)
+    echo $q $count
+done

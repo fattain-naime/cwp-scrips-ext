@@ -1,0 +1,54 @@
+#!/bin/bash
+# This script will fix clamd 100% cpu usage on the centos 7 servers
+
+
+if [ -e "/usr/lib/systemd/system" ];then
+	cd /usr/lib/systemd/system
+
+	if [ -e "clamd.service" ];then
+		# sed -i "s/^Type \= forking/Type \= simple/" clamd.service # OLD
+		sed -i 's/^ExecStart.*$/ExecStart = \/usr\/sbin\/clamd -c \/etc\/clamd.d\/amavisd.conf --foreground=yes/' clamd.service
+
+		cat > /usr/lib/systemd/system/clamd.service <<EOF
+[Unit]
+Description = clamd scanner (%i) daemon
+Documentation=man:clamd(8) man:clamd.conf(5) https://www.clamav.net/documents/
+After = syslog.target nss-lookup.target network.target
+
+[Service]
+Type = simple
+ExecStart = /usr/sbin/clamd -c /etc/clamd.d/amavisd.conf --foreground=yes
+# Reload the database
+ExecReload = /bin/kill -USR2 $MAINPID
+Restart = on-failure
+TimeoutStartSec = 10min
+IOSchedulingPriority = 7
+CPUSchedulingPolicy = 5
+Nice = 19
+
+[Install]
+WantedBy = multi-user.target
+EOF
+
+	fi
+
+	if [ -e "clamd-scan.service" ];then
+		sed -i 's/clamd@.service/clamd.service/' clamd-scan.service
+	fi
+
+	# remove duplicated clamd service
+	if [ -e "/usr/lib/systemd/system/clamd@.service" ];then
+		systemctl disable clamd@amavisd.service; systemctl stop clamd@amavisd.service
+		rm -f /usr/lib/systemd/system/clamd@.service
+	fi
+
+	systemctl daemon-reload
+	service clamd stop
+	service amavisd stop
+
+	rm -f /var/run/clamd.amavisd/clamd.sock
+
+	service clamd start
+        sleep 3
+	service amavisd start
+fi

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Script for Disk usage check 
+
+du -hs /var/log/
+du -hs /usr/local/apache/logs/
+du -hs /usr/local/apache/domlogs/
+du -hs /usr/local/cwp/php71/var/log/
+du -hs /usr/local/cwpsrv/logs/
+du -hs /var/spool/
+du -hs /tmp
+du -hs /root
+du -hs /var/lib/mysql/
+du -hs /opt

@@ -1,0 +1,18 @@
+#!/bin/bash
+# Manage PHP-FPM for websites
+
+
+# Action can be stop, start, restart, reload, status
+FPMACTION=$1
+
+cd /usr/lib/systemd/system/;
+
+if [ -z "$FPMACTION" ];then
+	for i in `ls php-fpm*.service`;do 
+		systemctl status $i
+	done
+else
+	for i in `ls php-fpm*.service`;do 
+		systemctl $FPMACTION $i
+	done
+fi

@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Exit script on any error
+set -e
+
+OPENSSL_VERSION="1.1.1w"
+INSTALL_DIR="/usr/local/openssl"
+SRC_DIR="/usr/local/src"
+
+echo "=================================================="
+echo " Starting OpenSSL ${OPENSSL_VERSION} Installation"
+echo "=================================================="
+
+# 1. Check if user is root
+if [ "$EUID" -ne 0 ]; then
+  echo "Error: This script must be run as root!"
+  exit 1
+fi
+
+# 2. Check if already installed
+if [ -x "${INSTALL_DIR}/bin/openssl" ]; then
+    INSTALLED_VER=$("${INSTALL_DIR}/bin/openssl" version | awk '{print $2}')
+    echo "Notice: OpenSSL is already installed in ${INSTALL_DIR} (Version: ${INSTALLED_VER})"
+    read -p "Do you want to recompile and reinstall it? [y/N]: " REINSTALL
+    if [[ ! "$REINSTALL" =~ ^[Yy]$ ]]; then
+        echo "Installation aborted."
+        exit 0
+    fi
+fi
+
+# 3. Install required build dependencies
+echo "[1/5] Installing build dependencies (gcc, make, perl, zlib)..."
+yum -y install gcc make perl-core pcre-devel zlib-devel wget > /dev/null
+
+# 4. Download and extract source code
+cd "${SRC_DIR}"
+echo "[2/5] Downloading OpenSSL ${OPENSSL_VERSION} source code..."
+if [ ! -f "openssl-${OPENSSL_VERSION}.tar.gz" ]; then
+    wget -q "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+fi
+
+echo "[3/5] Extracting source files..."
+rm -rf "openssl-${OPENSSL_VERSION}"
+tar -xzf "openssl-${OPENSSL_VERSION}.tar.gz"
+cd "openssl-${OPENSSL_VERSION}"
+
+# 5. Configure and compile
+echo "[4/5] Configuring and compiling (this may take a few minutes)..."
+./config --prefix="${INSTALL_DIR}" --openssldir="${INSTALL_DIR}" shared zlib-dynamic > /dev/null
+
+# Use all available CPU cores for faster build
+NPROC=$(nproc)
+make -j"${NPROC}" > /dev/null
+make install > /dev/null
+
+# 6. Register dynamic libraries in the system
+echo "[5/5] Registering dynamic shared libraries (ldconfig)..."
+echo "${INSTALL_DIR}/lib" > /etc/ld.so.conf.d/openssl111.conf
+ldconfig
+
+echo "=================================================="
+echo " SUCCESS! OpenSSL installed successfully."
+echo " Binary Path: ${INSTALL_DIR}/bin/openssl"
+echo " Version: $("${INSTALL_DIR}/bin/openssl" version)"
+echo "=================================================="

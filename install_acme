@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ ! -e "/root/.acme.sh/cwp_certs" ];then
+	cd /usr/local/src; rm -f acme.sh index.html;wget http://get.acme.sh;mv index.html acme.sh;sh acme.sh;/root/.acme.sh/acme.sh --set-default-ca  --server  letsencrypt
+else
+	echo "Acme installation folder already exists"
+fi

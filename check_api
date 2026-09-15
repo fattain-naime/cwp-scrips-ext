@@ -1,0 +1,76 @@
+#!/bin/bash
+# Diagnostic tool for CWP support
+
+
+# Test User API
+##################################################
+UAPI_PORTCHECK=`netstat -tulpn|grep "127.0.0.1:2302"|grep cwpsrv`
+
+if [ -z "$UAPI_PORTCHECK" ];then
+	echo "User API port 2302 check: FAILED"
+else
+	echo "User API port 2302 check: OK"
+	UAPI_OAUTHCHECK=`curl -sS -u testcwp:sldjflsjflsjlfjlsjflsjlfsjlfj -k 'https://127.0.0.1:2302/oauth/v2/server/token.php' -d 'grant_type=client_credentials'|grep invalid_client`
+	
+	if [ -z "$UAPI_OAUTHCHECK" ];then
+		echo "Oauth query check: FAILED"
+	else
+		echo "Oauth query check: OK"
+	fi
+	#echo "Oauth Check: $UAPI_OAUTHCHECK"	
+
+	#Check api response for correct folder
+	CHECKAPIFOLDER=`curl -sS "https://127.0.0.1:2302/v1/valid_user/" -k|grep 'Visit the Home Page'`
+
+	if [ -z "$CHECKAPIFOLDER" ];then
+		echo "User API folder check: FAILED"
+	else
+		echo "User API folder check: OK"
+	fi
+fi
+
+
+# Test External API
+##################################################
+EAPI_PORTCHECK=`netstat -tulpn|grep "0.0.0.0:2304"|grep cwpsrv`
+
+if [ -z "$EAPI_PORTCHECK" ];then
+    echo "External API port 2304 check: FAILED"
+else
+    echo "External API port 2304 check: OK"
+
+	EAPI_CHECKHTACCESS=`curl -sS -k 'https://127.0.0.1:2304/v1/testapi/'|grep "Visit the Home Page"`
+	if [ -z "$UAPI_OAUTHCHECK" ];then
+        echo "External API files and htaccess : FAILED"
+    else
+        echo "External API files and htaccess : OK"
+    fi
+fi
+
+
+# Check CSF Firewall
+##################################################
+CSF_FIREWALL=`csf -l|grep "csf -e"`
+
+if [ -z "$CSF_FIREWALL" ];then
+    echo "CSF Firewall status check: ENABLED"
+
+	# Check TCP_IN
+	CSF_TCP_IN=`grep ^TCP_IN /etc/csf/csf.conf|grep 2304`
+	if [ -z "$CSF_TCP_IN" ];then
+		echo "TCP_IN for port 2304 set in /etc/csf/csf.conf: FAILED"
+	else
+		echo "TCP_IN for port 2304 set in /etc/csf/csf.conf: OK"
+	fi
+
+	# Check	TCP_OUT
+    CSF_TCP_OUT=`grep ^TCP_OUT /etc/csf/csf.conf|grep 2304`
+    if [ -z "$CSF_TCP_OUT" ];then
+        echo "TCP_OUT for port 2304 set in /etc/csf/csf.conf: FAILED"
+    else
+        echo "TCP_OUT for port 2304 set in /etc/csf/csf.conf: OK"
+    fi
+
+else
+    echo "CSF Firewall status check: DISABLED"
+fi

@@ -1,0 +1,16 @@
+# Ignore docs folder
+docs/
+
+# Ignore any temporary or generated files
+*.log
+*.tmp
+
+# Ignore backup configs
+*.bak
+
+# Node modules (already removed)
+node_modules/
+
+# Package manager artifacts
+package-lock.json
+package.json

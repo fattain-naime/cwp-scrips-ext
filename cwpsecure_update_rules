@@ -1,0 +1,144 @@
+#!/bin/bash
+
+if [[ -f /etc/cwpsecure/CWP/stop_updates ]]; then
+        echo "Updates Disabled in file: /etc/cwpsecure/CWP/stop_updates"
+        exit 1
+fi
+
+if [ -e "/usr/sbin/cwpsecure-checkpolicy" ];then
+
+	KERNELCHK=`grep tomoyo_write_inet_network /proc/kallsyms`
+
+	if [ ! -z "$KERNELCHK" ];then
+
+		if [ ! -z $1 ];then
+			if [ $1  == "force" ];then
+				REMOTEVERSION="999999"
+			elif [ $1  == "forcelocal" ];then
+				REMOTEVERSION="999999"
+				#disable remote download
+				DISABLEREMOTE="1" 
+			else
+				REMOTEVERSION=`curl -sS http://static.cdn-cwp.com/files/security/kernel-rules/el7/version.txt`
+			fi
+		else
+			REMOTEVERSION=`curl -sS http://static.cdn-cwp.com/files/security/kernel-rules/el7/version.txt`
+		fi		
+
+		if [ ! -e "/etc/cwpsecure/CWP/version" ];then
+			LOCALVERSION="0"
+		else
+			LOCALVERSION=`cat /etc/cwpsecure/CWP/version`
+		fi		
+
+		if [ "$REMOTEVERSION" -gt "$LOCALVERSION" ];then
+
+			if [ -e "/etc/cwpsecure/CWP.tar.gz" ];then
+				rm -f /etc/cwpsecure/CWP.tar.gz
+			fi
+
+			cd /etc/cwpsecure/
+			
+			if [ -z "$DISABLEREMOTE" ];then
+				wget -q "http://static.cdn-cwp.com/files/security/kernel-rules/el7/CWP.tar.gz" -P /etc/cwpsecure/
+
+				if [ -e "/etc/cwpsecure/CWP/disabled.domains" ];then
+					tar xzf /etc/cwpsecure/CWP.tar.gz --exclude='CWP/disabled.domains'
+				else
+					tar xzf /etc/cwpsecure/CWP.tar.gz
+				fi
+			fi
+
+			# Replace ID for mysql user
+			#sed -i "s/MYSQL_USER/`/usr/bin/id -ru mysql`/g" /etc/cwpsecure/CWP/DOMAIN_POLICIES/SSH/ssh_main_ssh_bash.domain
+			#sed -i "s/NOBODY_USER/`/usr/bin/id -ru nobody`/g" /etc/cwpsecure/CWP/DOMAIN_POLICIES/WEB_SERVERS/*
+
+			# Replace ID for system users
+			if [[ `cat /etc/passwd  | grep postgres` == '' ]]; then useradd -r -d /var/lib/pgsql -c "PostgreSQL Server" -s /bin/bash postgres ;  fi
+			sed -i "s/POSTGRES_USER/`/usr/bin/id -ru postgres`/g" /etc/cwpsecure/CWP/EXCEPTION_POLICIES/postgresql.exception
+			sed -i "s/POSTGRES_USER/`/usr/bin/id -ru postgres`/g" /etc/cwpsecure/CWP/EXCEPTION_POLICIES/ssh_cwpfpm.exception
+
+			for i in `find /etc/cwpsecure/CWP/DOMAIN_POLICIES/ -name "*.domain"`; do
+				sed -i "s/MYSQL_USER/`/usr/bin/id -ru mysql`/g" $i
+				sed -i "s/NOBODY_USER/`/usr/bin/id -ru nobody`/g" $i
+				sed -i "s/POSTGRES_USER/`/usr/bin/id -ru postgres`/g" $i
+				sed -i "s/CLAMUPDATE_USER/`/usr/bin/id -ru clamupdate`/g" $i
+
+				# Streaming services #
+				# Icecast
+				 if [ `/usr/bin/id -ru icecast >/dev/null &>/dev/null; echo $?` -gt 0 ]; then
+				  sed -i "s/ICECAST_USER/0/g" $i
+				 else 
+				  sed -i "s/ICECAST_USER/`/usr/bin/id -ru icecast`/g" $i
+				 fi
+				# End Icecast
+				# Shoutcact
+				 if [ `/usr/bin/id -ru shoutcast >/dev/null &>/dev/null; echo $?` -gt 0 ]; then
+				  sed -i "s/SHOUTCAST_USER/0/g" $i
+				 else 
+				  sed -i "s/SHOUTCAST_USER/`/usr/bin/id -ru shoutcast`/g" $i
+				 fi
+				# End Shoutcast
+				# End streaming #
+				
+			done
+
+			# Check if a domain(s) disabled and disable it if so
+			for DISABLED in `sed 's/#.*$//' /etc/cwpsecure/CWP/disabled.domains`; do 
+			    if [ -f ${DISABLED} ]; then
+			    	if [ -e ${DISABLED}.disabled ];then
+			    		rm -f ${DISABLED}.disabled
+			    	fi
+			    	/bin/mv -f ${DISABLED} ${DISABLED}.disabled; 
+			    fi
+			done
+
+			# Find all exceptions and add them to the main one (/etc/cwpsecure/exception_policy.conf)
+			echo -n '' > /etc/cwpsecure/exception_policy.conf
+			for EXCEPTION in `find /etc/cwpsecure/CWP/EXCEPTION_POLICIES -name "*.exception" -print`; do
+			    cat ${EXCEPTION} >> /etc/cwpsecure/exception_policy.conf
+			done
+
+			# Find all non-disabled domains and add them to the main one (/etc/cwpsecure/domain_policy.conf)
+			echo -n '' > /etc/cwpsecure/domain_policy.conf
+			for DOMAIN in `find /etc/cwpsecure/CWP/DOMAIN_POLICIES -name "*.domain" -print | grep -v disabled`; do
+			    cat ${DOMAIN} >> /etc/cwpsecure/domain_policy.conf
+			done
+
+			# Check the domain and exception policies
+			cwpsecure-checkpolicy d < /etc/cwpsecure/domain_policy.conf > /etc/cwpsecure/CWP/error.log 
+			if [ $? != 0 ]; then
+			    echo "The domain rules installation has been stopped due error(s) below. Go to https://support.centos-webpanel.com"
+			    cat /etc/cwpsecure/CWP/error.log
+			    exit 1
+			fi
+
+			cwpsecure-checkpolicy e < /etc/cwpsecure/exception_policy.conf > /etc/cwpsecure/CWP/error.log 
+			if [ $? != 0 ]; then
+			    echo "The exception rules installation has been stopped due error(s) below. Go to https://support.centos-webpanel.com"
+			    cat /etc/cwpsecure/CWP/error.log
+			    exit 1
+			fi
+
+			# Install all rules if all okay
+			cwpsecure-loadpolicy -ef < /etc/cwpsecure/exception_policy.conf
+			cwpsecure-loadpolicy -df < /etc/cwpsecure/domain_policy.conf
+
+			if [ -e "/etc/cwpsecure/CWP/pending_changes" ];then
+				rm -f /etc/cwpsecure/CWP/pending_changes
+			fi
+
+			UPDATEDATE=`date`
+			echo "$UPDATEDATE Updated to version: $REMOTEVERSION " >> /var/log/cwp/cwp_kernel.log
+			echo "Update completed"
+
+		else
+			echo "No Update needed"
+		fi
+
+	else
+		echo "FAILED: Bad Kernel"
+	fi
+else
+	echo "FAILED: CWPsecure rules not installed"
+fi

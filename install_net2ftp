@@ -1,0 +1,24 @@
+#!/bin/bash
+echo 
+echo "CWP net2ft Installer"
+echo "##########################"
+echo
+if [[ -d /usr/local/src/net2ftp_v1.0 ]]; then echo "Probably net2ftp already installed? Check it manually"; exit 1; fi
+/usr/bin/wget http://static.cdn-cwp.com/files/3rdparty/filem/net2ftp_v1.0.zip -O /usr/local/src/net2ftp_v1.0.zip
+/usr/bin/unzip /usr/local/src/net2ftp_v1.0.zip -d /usr/local/src/ > /dev/null
+mv /usr/local/src/net2ftp_v1.0/files_to_upload /usr/local/apache/htdocs/net2ftp_v1.0
+rm -rf /usr/local/src/net2ftp_v1.0
+chown -R nobody:nobody /usr/local/apache/htdocs/net2ftp_v1.0
+mv /usr/local/apache/htdocs/net2ftp_v1.0/htaccess.txt /usr/local/apache/htdocs/net2ftp_v1.0/.htaccess
+if [[ ! -f /usr/local/apache/conf.d/redirects.conf ]]; then
+touch /usr/local/apache/conf.d/redirects.conf
+echo 'Alias /net2ftp /usr/local/apache/htdocs/net2ftp_v1.0 ' > /usr/local/apache/conf.d/redirects.conf
+else
+        if [[ `/bin/cat /usr/local/apache/conf.d/redirects.conf | grep 'net2ftp'` == "" ]]; then
+        echo 'Alias /net2ftp /usr/local/apache/htdocs/net2ftp_v1.0 ' >> /usr/local/apache/conf.d/redirects.conf
+        fi
+/etc/init.d/httpd reload
+fi
+echo 
+echo "net2ftp installed, you access it by using http://IP/net2ftp"
+exit 0

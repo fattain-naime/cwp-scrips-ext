@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+echo ""
+echo "CWP Scripts"
+echo "################################"
+echo ""
+
+# CWP BruteForce Protection
+sed -i "s|CUSTOM1_LOG.*|CUSTOM1_LOG = \"/var/log/cwp_client_login.log\"|g" /etc/csf/csf.conf
+sed -i "s|CUSTOM2_LOG.*|CUSTOM2_LOG = \"/usr/local/apache/domlogs/*.log\"|g" /etc/csf/csf.conf
+sed -i "s|^HTACCESS_LOG.*|HTACCESS_LOG = \"/usr/local/apache/logs/error_log\"|g" /etc/csf/csf.conf
+sed -i "s|^MODSEC_LOG.*|MODSEC_LOG = \"/usr/local/apache/logs/error_log\"|g" /etc/csf/csf.conf
+sed -i "s|^POP3D_LOG.*|POP3D_LOG = \"/var/log/dovecot-info.log\"|g" /etc/csf/csf.conf
+sed -i "s|^IMAPD_LOG.*|IMAPD_LOG = \"/var/log/dovecot-info.log\"|g" /etc/csf/csf.conf
+sed -i "s|^SMTPAUTH_LOG.*|SMTPAUTH_LOG = \"/var/log/maillog\"|g" /etc/csf/csf.conf
+sed -i "s|^FTPD_LOG.*|FTPD_LOG = \"/var/log/messages\"|g" /etc/csf/csf.conf
+
+cat > /usr/local/csf/bin/regex.custom.pm <<EOF
+#!/usr/bin/perl
+sub custom_line {
+        my \$line = shift;
+        my \$lgfile = shift;
+# Do not edit before this point
+
+# CWP Failed Login Protection
+if ((\$globlogs{CUSTOM1_LOG}{\$lgfile}) and (\$line =~ /^\S+\s+\S+\s+(\S+)\s+Failed Login from:\s+(\S+) on: (\S+)/)) {
+return ("Failed CWP-Login login for User: \$1 from IP: \$2 URL: \$3",\$2,"cwplogin","5","2030,2031","1");
+}
+
+# Wordpress XMLRPC
+if ((\$globlogs{CUSTOM2_LOG}{\$lgfile}) and (\$line =~ /(\S+).*] "\w*(?:GET|POST) \/xmlrpc\.php.*" /)) {
+return ("WP XMLPRC Attack",\$1,"XMLRPC","10","80,82,443,8181,8443","1");
+}
+
+# Wordpress WP-LOGINS
+if ((\$globlogs{CUSTOM2_LOG}{\$lgfile}) and (\$line =~ /(\S+).*] "\w*(?:GET|POST) \/wp-login\.php.*" /)) {
+return ("WP Login Attack",\$1,"WPLOGIN","10","80,82,443,8181,8443","1");
+}
+
+# Do not edit beyond this point
+        return 0;
+}
+1;
+EOF
+echo
+service lfd restart
+echo
+echo "You need to restart Firewall for changes to affect!! "
+echo "csf -r"

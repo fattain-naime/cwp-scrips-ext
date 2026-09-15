@@ -1,0 +1,457 @@
+#!/bin/bash
+
+# Define the malicious key fragment and log file
+HACKER_KEY="IPCsi58xDKuXuq8CMnlIFQHoqiGkyziMQpAks2t0EBa0"
+LOG_FILE="/var/log/hacker_cleanup.log"
+
+echo "--- Starting security cleanup: $(date) ---" >> "$LOG_FILE"
+
+# Iterate through all directories in /home
+for home_dir in /home/*; do
+    # Ensure it's a directory
+    if [ -d "$home_dir" ]; then
+        user=$(basename "$home_dir")
+        ssh_dir="$home_dir/.ssh"
+        auth_keys="$ssh_dir/authorized_keys"
+
+        # Check if the malicious key exists in the authorized_keys file
+        if [ -f "$auth_keys" ] && grep -q "$HACKER_KEY" "$auth_keys"; then
+            echo "Detected malicious access for user: $user" >> "$LOG_FILE"
+
+            # 1. Remove the entire .ssh directory to ensure all backdoors are gone
+            chattr -i -R "$ssh_dir"
+
+            # backup ssh key file
+            cp "$auth_keys" "$auth_keys.bak_security"
+            sed -i "/$HACKER_KEY/d" "$auth_keys"
+            echo "  [OK] Removed malicious key line from authorized_keys for $user." >> "$LOG_FILE"
+
+            chmod 600 "$auth_keys"
+            chmod 700 "$ssh_dir"
+            chown -R "$user:$user" "$ssh_dir"
+
+            # SECURITY CHECK: Do NOT lock cloud provider default admin accounts
+            # This prevents locking yourself out of OVH, AWS, or generic cloud instances
+            if [[ "$user" =~ ^(centos|almalinux|rocky|ubuntu|debian|ec2-user|cloud-user|root)$ ]]; then
+                echo "  [SKIP] User $user is a cloud admin account. Skipping account lock and shell modification." >> "$LOG_FILE"
+            else
+                # 2. Set shell to nologin to prevent future SSH or su access for regular compromised users
+                usermod -s /sbin/nologin "$user"
+                echo "  [OK] User $user set to nologin." >> "$LOG_FILE"
+
+                # 3. Lock the user account (password locking)
+                usermod -L "$user"
+                echo "  [OK] User $user account locked." >> "$LOG_FILE"
+            fi
+        fi
+    fi
+done
+
+echo "--- Cleanup completed: $(date) ---" >> "$LOG_FILE"
+
+# Backup root ssh keys to root folder
+cp /root/.ssh/authorized_keys /root
+
+# Check if root's authorized_keys file exists before modifying
+if [ -f "/root/.ssh/authorized_keys" ]; then
+    echo "Processing root SSH keys..." >> "$LOG_FILE"
+
+    # Backup root ssh keys to root folder
+    cp /root/.ssh/authorized_keys /root/authorized_keys.bak_security
+
+    # Remove root hacker key
+    chattr -i /root/.ssh/authorized_keys 2>/dev/null
+    sed -i '/IPCsi58xDKuXuq8CMnlIFQHoqiGkyziMQpAks2t0EBa0/d' /root/.ssh/authorized_keys
+    chown root:root /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+    
+    echo "  [OK] Cleaned root authorized_keys file." >> "$LOG_FILE"
+else
+    echo "  [INFO] Root authorized_keys file does not exist. Skipping." >> "$LOG_FILE"
+fi
+
+# Secure the 'operator' system account if it exists
+if getent passwd operator > /dev/null 2>&1; then
+    usermod -L operator 2>/dev/null
+    chsh -s /sbin/nologin operator 2>/dev/null
+    echo "  [OK] System account 'operator' has been locked and set to nologin." >> "$LOG_FILE"
+else
+    echo "  [INFO] System account 'operator' not found. Skipping." >> "$LOG_FILE"
+fi
+
+# Secure the 'mysql' system account if it exists
+if getent passwd mysql > /dev/null 2>&1; then
+    usermod -L mysql 2>/dev/null
+    chsh -s /sbin/nologin mysql 2>/dev/null
+    echo "  [OK] System account 'mysql' has been locked and set to nologin." >> "$LOG_FILE"
+else
+    echo "  [INFO] System account 'mysql' not found. Skipping." >> "$LOG_FILE"
+fi
+
+if [ -f "/var/lib/mysql/.ssh" ];then
+    chattr -i -R /var/lib/mysql/.ssh
+    rm -Rf /var/lib/mysql/.ssh
+fi
+
+# Hacker host
+grep -q "mya.cloudsyndication.org" /etc/hosts || echo "127.0.0.1 mya.cloudsyndication.org" >> /etc/hosts
+grep -q "gsocket.io" /etc/hosts || echo "127.0.0.1 gsocket.io" >> /etc/hosts
+
+# List of all system users to inspect and secure
+USERS=(
+    bin daemon adm lp sync shutdown halt mail operator games ftp nobody 
+    systemd-network dbus polkitd rpc rpcuser nfsnobody sshd postfix 
+    chrony centos ntp mysql saslauth dovecot dovenull tss named 
+    cwpsrv cwpsvc login clamupdate amavis clamscan vmail vacation 
+    opendkim postgres
+)
+
+echo "=== Starting Aggressive System User & SSH Key Cleanup ==="
+
+for u in "${USERS[@]}"; do
+    # Check if the user actually exists on this system
+    if id "$u" &>/dev/null; then
+        
+        # 1. Lock the password
+        passwd -l "$u" &>/dev/null
+        
+        # 2. Disable login shell, EXCEPT for sync, shutdown, and halt
+        if [[ "$u" != "sync" && "$u" != "shutdown" && "$u" != "halt" ]]; then
+            chsh -s /sbin/nologin "$u" &>/dev/null
+        fi
+        
+        # 3. Locate the home directory dynamically
+        homedir=$(getent passwd "$u" | cut -d: -f6)
+
+        if [ -z "$homedir" ]; then
+            echo "[SKIP] Home directory for user '$u' is empty. Skipping to prevent destructive paths."
+            continue
+        fi
+
+        if [ "$homedir" = "/root" ] || [ "$homedir" = "/" ] || [ "$homedir" = "/sbin" ] || [ "$homedir" = "/bin" ]; then
+            echo "[SAFEGUARD] CRITICAL PREVENTION: User '$u' has its home directory set to protected location: $homedir. Skipping to protect ROOT and SYSTEM!"
+            continue
+        fi
+        
+        if [ -d "$homedir/.ssh" ]; then
+            echo "[TARGETFOUND] Found backdoor .ssh directory for user '$u' at: $homedir/.ssh"
+            
+            # --- THE FIX FOR 'OPERATION NOT PERMITTED' ---
+            # Recursively strip immutable (+i) and append-only (+a) flags from the folder and everything inside
+            chattr -R -i -a "$homedir/.ssh" 2>/dev/null
+            chattr -i -a "$homedir/.ssh/authorized_keys" 2>/dev/null
+            
+            # Now perform the aggressive removal
+            rm -rf "$homedir/.ssh"
+            
+            # Double check if the removal was successful
+            if [ -d "$homedir/.ssh" ]; then
+                echo "[CRITICAL FAILURE] Could not remove $homedir/.ssh even after stripping attributes!"
+            else
+                echo "[SUCCESS_CLEANED] Successfully eradicated backdoor keys for user: $u"
+            fi
+        fi
+    fi
+done
+
+echo "=== Aggressive cleanup complete ==="
+
+# Define the target directory for custom sudoers rules
+SUDO_DIR="/etc/sudoers.d"
+
+# List of known malicious files created by the hacker matching the system users
+MALICIOUS_FILES=(
+    adm amavis bin clamscan clamupdate cwpsrv cwpsvc daemon dbus 
+    dovecot dovenull ftp games halt login lp mail mysql named 
+    nginx nobody opendkim operator polkitd postfix redis saslauth 
+    shutdown sshd systemd-network tss vacation vmail
+)
+
+echo "Starting cleanup of /etc/sudoers.d/..."
+
+for file in "${MALICIOUS_FILES[@]}"; do
+    TARGET_PATH="$SUDO_DIR/$file"
+    
+    # Check if the malicious file actually exists
+    if [ -f "$TARGET_PATH" ]; then
+        # Double check the content to make sure it contains the dangerous NOPASSWD string
+        if grep -q "NOPASSWD" "$TARGET_PATH"; then
+            rm -f "$TARGET_PATH"
+            echo "[REMOVED] Malicious sudoers file deleted: $TARGET_PATH"
+        else
+            echo "[WARNING] File $file exists but content does not match pattern. Skipped for safety."
+        fi
+    fi
+done
+
+echo "Sudoers backup/backdoor cleanup complete."
+
+echo "=== Starting GSocket (gs-netcat) Neutralization ==="
+
+# STEP 1: Immediately block gsocket infrastructure via /etc/hosts
+# This kills their connection even if a hidden binary attempts to run.
+echo "Blocking GSocket network domains..."
+for domain in gsocket.io www.gsocket.io; do
+    if ! grep -q "$domain" /etc/hosts; then
+        echo "127.0.0.1 $domain" >> /etc/hosts
+        echo "[BLOCKED] Added $domain to /etc/hosts"
+    fi
+done
+
+# STEP 2: Kill all active hacker processes related to gsocket
+# We target 'gs-netcat', 'gsocket', and connections pointing to gsocket IPs.
+echo "Hunting and killing active GSocket processes..."
+pkill -f gs-netcat
+pkill -f gsocket
+pkill -f "gsocket.io"
+
+# STEP 3: Scan and clean persistence points (Cron jobs)
+# The attacker likely injects this script into crontabs to restart it every minute.
+echo "Scanning crontabs for gsocket persistence..."
+for user in $(cut -d: -f1 /etc/passwd); do
+    if crontab -u "$user" -l 2>/dev/null | grep -qE "gsocket|gs-netcat"; then
+        echo "[CRON MALWARE] Found in user: $user. Cleaning..."
+        # Strip lines containing the malware keywords
+        crontab -u "$user" -l | grep -vE "gsocket|gs-netcat" | crontab -u "$user" -
+    fi
+done
+
+# System-wide cron directories cleanup
+echo "Scanning system cron directories..."
+find /etc/cron* /var/spool/cron -type f 2>/dev/null | while read -r cronfile; do
+    if grep -qE "gsocket|gs-netcat" "$cronfile"; then
+        echo "[SYSTEM CRON] Removing malware lines from: $cronfile"
+        sed -i '/gsocket/d' "$cronfile"
+        sed -i '/gs-netcat/d' "$cronfile"
+    fi
+done
+
+# STEP 4: Remove files injected into user profiles (.bashrc, .profile)
+# Check all users' login scripts for the '# gsocket - start' block you found.
+echo "Scanning user profiles for bash-injected hooks..."
+find /home /root -maxdepth 3 -type f -name ".*rc" -o -name ".profile" 2>/dev/null | while read -r profile; do
+    if grep -q "gsocket" "$profile"; then
+        echo "[PROFILE HOOK] Found in $profile. Stripping block..."
+        # This removes everything between the start and end comments of gsocket
+        sed -i '/# gsocket - start/,/# gsocket - end/d' "$profile"
+        # Backup safety delete if comments were stripped but keyword remains
+        sed -i '/gsocket/d' "$profile"
+        sed -i '/gs-netcat/d' "$profile"
+    fi
+done
+
+echo "=== GSocket remediation complete ==="
+
+
+echo "=== STARTING SAFE MYSQL SECURITY CLEANUP ==="
+
+# Define explicit list of unauthorized malicious usernames
+MALICIOUS_USERS="('dbadmin', 'sys', 'mariadb', 'admin')"
+
+# ==========================================
+# PHASE 1: FORENSIC HASH RESOLUTION (MUST RUN FIRST)
+# ==========================================
+echo "[1/3] Analyzing database for shared hacker signature password hashes..."
+
+# Extract password hashes BEFORE dropping the malicious accounts
+HACKER_HASHES=$(mysql -B -N -e "SELECT Password FROM mysql.user WHERE User IN $MALICIOUS_USERS AND Password != '' UNION SELECT authentication_string FROM mysql.user WHERE User IN $MALICIOUS_USERS AND authentication_string != '';" | sort -u)
+
+if [ -n "$HACKER_HASHES" ]; then
+    for hash in $HACKER_HASHES; do
+        echo "[FOUND HACKER SIGNATURE] Backdoor hash pattern detected: $hash"
+        
+        mysql -B -N -e "SELECT User, Host FROM mysql.user;" | while read -r user host; do
+            user_hash=$(mysql -B -N -e "SELECT Password FROM mysql.user WHERE User='$user' AND Host='$host' UNION SELECT authentication_string FROM mysql.user WHERE User='$user' AND Host='$host';" | grep -v '^$' | head -n 1)
+            
+            if [ "$user_hash" == "$hash" ]; then
+                if [ "$user" == "root" ]; then
+                    echo "[CRITICAL WARNING] Root is using the hacker password! CHANGE ROOT PASSWORD IMMEDIATELY!"
+                else
+                    # UNIVERSAL FIX: Using SET PASSWORD to guarantee hash rewrite across all MariaDB/MySQL versions
+                    echo "[SAFE FIX] User '$user'@'$host' matches hacker hash! Resetting to secure random password..."
+                    RANDOM_PW=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)
+                    mysql -e "SET PASSWORD FOR '$user'@'$host' = PASSWORD('$RANDOM_PW');" 2>/dev/null
+                    echo "  [OK] User '$user'@'$host' protected. Password successfully rotated."
+                fi
+            fi
+        done
+    done
+fi
+
+# ==========================================
+# PHASE 2: TARGETED MALICIOUS ACCOUNT DROPS
+# ==========================================
+echo "[2/3] Hunting for explicit wildcard backdoor accounts..."
+
+# Now it is safe to physically drop the backdoor users
+mysql -B -N -e "SELECT User, Host FROM mysql.user WHERE Host='%' AND User IN $MALICIOUS_USERS;" | while read -r user host; do
+    if [ -n "$user" ]; then
+        echo "[DELETE] Dropping blatant backdoor user: '$user'@'$host'"
+        mysql -e "DROP USER '$user'@'$host';" 2>/dev/null
+    fi
+done
+
+# ==========================================
+# PHASE 3: EMPTY PASSWORD SECURING (FIXED LOGIC)
+# ==========================================
+echo "[3/3] Checking for ANY accounts with EMPTY passwords..."
+
+# CRITICAL FIX: Changed OR to AND, and checking for NULL/empty fields properly to prevent false positives on older MariaDB versions
+mysql -B -N -e "SELECT User, Host FROM mysql.user WHERE (Password='' OR Password IS NULL) AND (authentication_string='' OR authentication_string IS NULL);" | while read -r user host; do
+    if [ -n "$user" ] && [ "$user" != "root" ] && [ "$user" != "mariadb.sys" ] && [ "$user" != "debian-sys-maint" ]; then
+        echo "[SECURITY ALERT] User '$user'@'$host' TRULY has NO PASSWORD! Generating secure random password..."
+        RANDOM_PW=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)
+        mysql -e "SET PASSWORD FOR '$user'@'$host' = PASSWORD('$RANDOM_PW');" 2>/dev/null
+    fi
+done
+
+# Apply all changes permanently
+echo "Flushing privileges to apply changes permanently..."
+mysql -e "FLUSH PRIVILEGES;"
+
+echo "=== SAFE MYSQL CLEANUP COMPLETE ==="
+
+
+
+# Roudcube Cleaner
+chmod 755 /usr/local/cwpsrv/var/services/roundcube/temp
+chmod 755 /usr/local/cwpsrv/var/services/roundcube/logs
+
+RC_DIR="/usr/local/cwpsrv/var/services/roundcube"
+TEMP_DIR="$RC_DIR/temp"
+
+echo "=== Commencing Roundcube Directory Security Hardening ==="
+
+if [ -d "$RC_DIR" ]; then
+    # STEP 1: Fix broad permissions across the Roundcube installation
+    # Change 777 permissions to secure 755 (owner can write, others can only read/execute)
+    echo "Hardening broad directory permissions from 777 to 755..."
+    find "$RC_DIR" -type d -perm 777 -exec chmod 755 {} \;
+
+    # STEP 2: Wipe all contents inside the temp folder (including hidden malicious files)
+    echo "Purging all existing hacker implants from temp directory..."
+    find "$TEMP_DIR" -mindepth 1 -delete
+
+    # STEP 3: Enforce strict file ownership and secure permissions
+    # We ensure cwpsvc owns it, but completely block world-writable access (755)
+    echo "Enforcing strict owner permissions on the temp directory..."
+    chown -R cwpsvc:cwpsvc "$RC_DIR"
+    chmod 755 "$TEMP_DIR"
+
+    # STEP 4: Inject a protective web server rule directly inside Roundcube's directory
+    # Even if Nginx conf is bypassed, an internal .htaccess drop acts as an immediate fallback barrier
+    echo "Creating PHP execution block (.htaccess) inside the temp directory..."
+    cat << 'EOF' > "$TEMP_DIR/.htaccess"
+<Files *>
+    SetHandler default-handler
+</Files>
+RemoveHandler .php .phtml .php3 .php4 .php5 .php6 .php7 .php8
+php_flag engine off
+
+# deny webserver access to this directory
+<ifModule mod_authz_core.c>
+    Require all denied
+</ifModule>
+
+<ifModule !mod_authz_core.c>
+    Deny from all
+</ifModule> 
+EOF
+    
+    # Secure the .htaccess file itself so it cannot be modified by the web server easily
+    chmod 644 "$TEMP_DIR/.htaccess"
+    chown root:root "$TEMP_DIR/.htaccess" 2>/dev/null || chown cwpsvc:cwpsvc "$TEMP_DIR/.htaccess"
+
+    echo "[SUCCESS] Roundcube temp folder sterilized and locked down."
+else
+    echo "[ERROR] Roundcube directory not found at $RC_DIR"
+fi
+
+# Fix roundcube access to temp and logs
+cat << 'EOF' > /usr/local/cwpsrv/conf/cwp_services.conf
+location /pma {
+    root /usr/local/cwpsrv/var/services;
+    index  index.html index.htm index.php;
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_read_timeout 600;
+        fastcgi_pass    unix:/usr/local/cwp/php71/var/sockets/cwpsvc.sock;
+        fastcgi_index   index.php;
+        fastcgi_param   SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+        fastcgi_param   SCRIPT_NAME   $fastcgi_script_name;
+    fastcgi_param   PHP_ADMIN_VALUE "open_basedir = /usr/local/cwpsrv/var/services/pma/:/tmp/";
+        include                 fastcgi_params;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
+        access_log    off;
+        log_not_found    off;
+        expires 1M;
+    }
+}
+location /roundcube {
+    root /usr/local/cwpsrv/var/services;
+    index  index.html index.htm index.php;
+
+    # BLOCK HACKER ACCESS TO TEMP AND LOGS DIRECTORIES
+    location ~ ^/roundcube/(temp|logs)/ {
+        deny all;
+        return 403;
+    }
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_read_timeout 600;
+        fastcgi_pass    unix:/usr/local/cwp/php71/var/sockets/cwpsvc.sock;
+        fastcgi_index   index.php;
+        fastcgi_param   SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+        fastcgi_param   SCRIPT_NAME   $fastcgi_script_name;
+    fastcgi_param   PHP_ADMIN_VALUE "open_basedir = /usr/local/cwpsrv/var/services/roundcube/:/tmp/:/usr/local/cwp/php71/lib/";
+        include                 fastcgi_params;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
+        access_log    off;
+        log_not_found    off;
+        expires 1M;
+    }
+}
+location /phpPgAdmin {
+    root /usr/local/cwpsrv/var/services;
+    index  index.html index.htm index.php;
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)\$;
+        fastcgi_read_timeout 600;
+        fastcgi_pass    unix:/usr/local/cwp/php71/var/sockets/cwpsvc.sock;
+        fastcgi_index   index.php;
+        fastcgi_param   SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+        fastcgi_param   SCRIPT_NAME   $fastcgi_script_name;
+    fastcgi_param   PHP_ADMIN_VALUE "open_basedir = /usr/local/cwpsrv/var/services/phpPgAdmin/:/tmp/";
+        include                 fastcgi_params;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
+        access_log    off;
+        log_not_found    off;
+        expires 1M;
+    }
+}
+
+EOF
+
+if [ -f "/usr/local/cwpsrv/htdocs/admin/design/img/ico.php" ];then
+    chattr -i /usr/local/cwpsrv/htdocs/admin/design/img/ico.php /usr/local/cwpsrv/htdocs/admin/design/img/
+    rm -f /usr/local/cwpsrv/htdocs/admin/design/img/ico.php
+fi
+
+
+# Other found scripts
+rm -f /tmp/.cwp_root.php /tmp/.cwp_script.sh
+
+# Restart CWPsrv
+/scripts/restart_cwpsrv

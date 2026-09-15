@@ -1,0 +1,50 @@
+#!/bin/bash
+# CWP Updater script
+
+# LOG FOLDER CHECK
+if [ ! -e "/var/log/cwp" ];then
+	mkdir /var/log/cwp
+fi
+
+# UPDATE
+if [ -e "/usr/bin/curl" ];then
+
+	# Check new versions remote
+	CHECK_NEW_VERSION=`curl -Ss "http://centos-webpanel.com/webpanel/versions/el7-stable.txt" | awk {'print $3'}`
+
+	# Check admin versions
+	CHECK_CURENT_VERSION_CWP=`/usr/local/cwpsrv/htdocs/resources/admin/version.txt`
+	CHECK_CURENT_VERSION_CWP_DESIGN=`/usr/local/cwpsrv/htdocs/admin/design/version.txt`
+	CHECK_CURENT_VERSION_CWP_REMOTE=`echo $CHECK_NEW_VERSION | awk {print $1}`
+	CHECK_CURENT_VERSION_CWP_DESIGN_REMOTE=`echo $CHECK_NEW_VERSION | awk {print $2}`
+
+	# Check user versions
+	CHECK_CURENT_VERSION_CWP_USER=`cat /usr/local/cwpsrv/var/services/user_files/version.txt`
+	CHECK_CURENT_VERSION_CWP_USER_DESIGN=`cat /usr/local/cwpsrv/var/services/users/cwp_theme/version.txt`
+	CHECK_CURENT_VERSION_CWP_USER_REMOTE=`echo $CHECK_NEW_VERSION | awk {print $3}`
+	CHECK_CURENT_VERSION_CWP_USER_DESIGN_REMOTE=`echo $CHECK_NEW_VERSION | awk {print $4}`
+
+
+	if [[ "$CHECK_CURENT_VERSION_CWP_REMOTE" -gt "$CHECK_CURENT_VERSION_CWP" ]];then
+		echo "CWP-Update starting admin panel update" >> /var/log/cwp/cwp_update.log
+		sh /scripts/cwp_update_admin
+	fi
+
+	if [[ "$CHECK_CURENT_VERSION_CWP_DESIGN_REMOTE" -gt "$CHECK_CURENT_VERSION_CWP_DESIGN" ]];then
+		echo "CWP-Update starting admin panel design update" >> /var/log/cwp/cwp_update.log
+		sh /scripts/cwp_update_admin_design
+	fi
+
+	if [[ "$CHECK_CURENT_VERSION_CWP_USER_REMOTE" -gt "$CHECK_CURENT_VERSION_CWP_USER" ]];then
+		echo "CWP-Update starting user panel update" >> /var/log/cwp/cwp_update.log
+		sh /scripts/cwp_update_user
+	fi
+
+	if [[ "$CHECK_CURENT_VERSION_CWP_USER_DESIGN_REMOTE" -gt "$CHECK_CURENT_VERSION_CWP_USER_DESIGN" ]];then
+		echo "CWP-Update starting user panel design update" >> /var/log/cwp/cwp_update.log
+		sh /scripts/cwp_update_user_design
+	fi
+
+else
+	echo "FAILED: CURL not installed, try: yum install curl"
+fi

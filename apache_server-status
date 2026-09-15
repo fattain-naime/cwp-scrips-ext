@@ -1,0 +1,27 @@
+#!/bin/bash
+# Security Fix For Apache Server Status
+
+if [ -e "/usr/local/apache/conf.d/server-status.conf" ];then
+	STATUSSECCHECK=`grep "Deny from all\|Require all denied" /usr/local/apache/conf.d/server-status.conf`
+	if [ -z "$STATUSSECCHECK" ];then
+		cat > /usr/local/apache/conf.d/server-status.conf <<EOF
+<Location /server-status>
+    SetHandler server-status
+    Require all denied
+    Require ip 127.0.0.1
+    Require host localhost
+</Location>
+EOF
+		service httpd reload
+	fi
+else
+	cat > /usr/local/apache/conf.d/server-status.conf <<EOF
+<Location /server-status>
+    SetHandler server-status
+    Require all denied
+    Require ip 127.0.0.1
+    Require host localhost
+</Location>
+EOF
+	service httpd reload
+fi

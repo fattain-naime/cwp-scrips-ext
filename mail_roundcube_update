@@ -1,0 +1,72 @@
+#!/bin/bash
+#yum install wget curl -y
+yum -y update curl
+echo
+current_version=`cat /usr/local/cwpsrv/var/services/roundcube/index.php | grep Version | cut -d " " -f 4`
+
+if [[ "$current_version" = "1.5.0" ]];then
+    sed -i "s/1.5.0/1.4.10/g" /usr/local/cwpsrv/var/services/roundcube/program/include/iniset.php
+    current_version="1.4.10"
+fi
+
+#url=`curl -sS https://roundcube.net/download/ | grep complete |  sed -n 1,1p|awk -F\"  {'print $4'}`
+url=`curl -sS http://static.cdn-cwp.com/files/mail/rc.txt`
+echo
+new_version=`echo $url`
+Date=`date "+%d-%m-%Y"`
+
+if [[ "$current_version" == "$url" ]]; then
+    echo "###############################"
+    echo "Roundcube is already up-to-date"
+    echo "###############################"
+else
+    echo "Updating Roundcube to version $new_version"
+    cp -R /usr/local/cwpsrv/var/services/roundcube /usr/local/cwpsrv/var/services/roundcube_$Date.bak
+    cd /usr/local/cwpsrv/var/services/
+    wget "http://static.cdn-cwp.com/files/mail/roundcubemail-$url-complete.tar.gz"
+    tar -xvzf roundcubemail-$url-complete.tar.gz
+    rm -rf roundcubemail-$url-complete.tar.gz
+
+    # version  0.9.8.764 fix for new roundcube update if user has disabled system in default server php
+    sed -i "s@\/usr\/bin\/env php@\/usr\/bin\/env \/usr\/local\/cwp\/php71\/bin\/php@g" /usr/local/cwpsrv/var/services/roundcubemail-$url/bin/installto.sh
+    
+    echo Y | /usr/local/cwpsrv/var/services/roundcubemail-$url/bin/installto.sh /usr/local/cwpsrv/var/services/roundcube
+
+    if [ -e "/usr/local/cwpsrv/var/services/roundcube/rc_plugins.zip" ];then
+        rm -f /usr/local/cwpsrv/var/services/roundcube/rc_plugins.zip
+    fi
+    wget -P /usr/local/cwpsrv/var/services/roundcube http://static.cdn-cwp.com/files/mail/rc_plugins.zip
+    cd /usr/local/cwpsrv/var/services/roundcube; unzip -o rc_plugins.zip; rm -f rc_plugins.zip
+
+    curl -sS 'http://static.cdn-cwp.com/files/mail/mysql.initial.calender.sql'|mysql --defaults-extra-file=/root/.my.cnf roundcube
+    curl -sS 'http://static.cdn-cwp.com/files/mail/mysql.initial.tasklist.sql'|mysql --defaults-extra-file=/root/.my.cnf roundcube
+
+    grep "'calendar'" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php || sed -i "s/'managesieve',/'managesieve',\n    'calendar',/g" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php
+    grep "'tasklist'" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php || sed -i "s/'managesieve',/'managesieve',\n    'tasklist',/g" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php
+    grep "'carddav'" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php || sed -i "s/'managesieve',/'managesieve',\n    'carddav',/g" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php
+
+    # CWP Plugins
+    if  [ ! -e "/usr/local/cwpsrv/var/services/roundcube/plugins/cwpautologon/cwpautologon.php" ];then
+        mkdir -p /usr/local/cwpsrv/var/services/roundcube/plugins/cwpautologon 2> /dev/null
+        wget -q static.cdn-cwp.com/files/mail/cwpautologon.txt -O /usr/local/cwpsrv/var/services/roundcube/plugins/cwpautologon/cwpautologon.php
+        chown -R cwpsvc.cwpsvc /usr/local/cwpsrv/var/services/roundcube/plugins/cwpautologon
+        grep "'cwpautologon'" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php || sed -i "s/'managesieve',/'managesieve',\n    'cwpautologon',/g" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php
+        if [ -e "/usr/local/cwpsrv/var/services/roundcube/skins/elastic" ];then
+            sed -i "s/'larry'/'elastic'/g" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php
+        fi  
+    fi
+
+    chown -R cwpsvc:cwpsvc /usr/local/cwpsrv/var/services/roundcube 
+    rm -rf /usr/local/cwpsrv/var/services/roundcube/installer
+
+    # elastic skin setup
+    if [ -e "/usr/local/cwpsrv/var/services/roundcube/skins/elastic" ];then
+        sed -i "s/larry/elastic/g" /usr/local/cwpsrv/var/services/roundcube/config/config.inc.php
+    fi
+    
+    #service httpd restart
+    echo "###################################"
+    echo "Roundcube is updated to new version"
+    echo "###################################"
+fi
+

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ -z "$1" ];then
+	find /var/spool/postfix/deferred -type f | wc -l
+else
+	POSTQUEUE=`find /var/spool/postfix/deferred -type f | wc -l`
+	if [ "$POSTQUEUE" -ge "$1" ];then
+		echo "Postfix queue status $POSTQUEUE"
+		exit 1
+	else
+		echo "Postfix queue status $POSTQUEUE"
+		exit 0
+	fi
+fi

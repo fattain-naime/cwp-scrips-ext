@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Define the table header
+echo "--------------------------------------------------------------------------------"
+printf "%-22s %-12s %-10s %-12s %-12s\n" "USER" "PARTITION" "USED" "SOFT LIMIT" "HARD LIMIT"
+echo "--------------------------------------------------------------------------------"
+
+# 1. We run repquota -a -s
+# 2. AWK parses the data:
+#    - It filters for users in Megabytes (M) or Gigabytes (G).
+#    - It replaces '0K' with 'Unlimited' for better readability.
+# 3. SORT -k3,3rh handles the human-readable sorting (GB > MB).
+repquota -a -s 2>/dev/null | awk '
+    /\*\*\* Report/ { dev = $NF } 
+    $3 ~ /[GM]$/ { 
+        soft = ($4 == "0K") ? "Unlimited" : $4;
+        hard = ($5 == "0K") ? "Unlimited" : $5;
+        print $1, dev, $3, soft, hard 
+    }
+' | sort -k3,3rh | awk '{ printf "%-22s %-12s %-10s %-12s %-12s\n", $1, $2, $3, $4, $5 }'
+
+echo "--------------------------------------------------------------------------------"

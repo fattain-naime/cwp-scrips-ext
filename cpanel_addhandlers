@@ -1,0 +1,543 @@
+#!/bin/bash
+# Add cPanel AddHandler into cwp suphp
+
+
+if [ -e "/usr/local/apache/conf.d/suphp.conf" ];then
+
+	# cwp-php
+	if [[ -z `grep x-httpd-php53 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php53" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php54 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php54" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php55 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php55" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php56 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php56" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php70 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php70" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php71 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php71" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php72 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php72" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php73 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php73" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php74 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php74" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php80 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php80" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php81 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php81" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php82 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php82" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php83 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-php83" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+	
+	# ea-php
+	if [[ -z `grep x-httpd-ea-php83 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php83" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php82 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php82" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php81 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php81" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php80 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php80" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php74 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php74" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php73 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php73" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php72 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php72" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php71 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php71" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php70 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php70" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php56 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php56" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php55 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php55" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php54 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php54" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php53 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php53" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	# alt-php
+	if [[ -z `grep x-httpd-alt-php83 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php83" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php82 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php82" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php81 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php81" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php80 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php80" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php74 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php74" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php73 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php73" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php72 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php72" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php71 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php71" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php70 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php70" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php56 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php56" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php55 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php55" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php54 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php54" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php53 /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php53" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	# ea-lsphp
+	if [[ -z `grep x-httpd-ea-php83___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php83___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php82___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php82___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php81___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php81___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php80___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php80___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php74___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php74___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php73___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php73___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php72___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php72___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php71___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php71___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php70___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php70___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php56___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php56___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php55___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php55___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php54___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php54___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php53___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-ea-php53___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	# alt-lsphp
+	if [[ -z `grep x-httpd-alt-php83___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php83___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php82___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php82___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php81___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php81___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php80___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php80___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php74___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php74___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php73___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php73___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php72___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php72___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php71___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php71___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php70___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php70___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php56___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php56___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php55___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php55___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php54___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php54___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php53___lsphp /usr/local/apache/conf.d/suphp.conf` ]];then
+		echo "suPHP_AddHandler application/x-httpd-alt-php53___lsphp" >> /usr/local/apache/conf.d/suphp.conf
+	fi
+
+fi
+
+if [ -e "/usr/local/etc/suphp.conf" ];then
+
+	# cwp-php
+	if [[ -z `grep x-httpd-php53 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php53=\"php:/opt/alt/php53/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php54 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php54=\"php:/opt/alt/php54/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php55 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php55=\"php:/opt/alt/php55/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php56 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php56=\"php:/opt/alt/php56/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php70 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php70=\"php:/opt/alt/php70/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php71 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php71=\"php:/opt/alt/php71/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php72 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php72=\"php:/opt/alt/php72/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php73 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php73=\"php:/opt/alt/php73/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php74 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php74=\"php:/opt/alt/php74/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php80 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php80=\"php:/opt/alt/php80/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php81 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php81=\"php:/opt/alt/php81/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php82 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php82=\"php:/opt/alt/php82/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-php83 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-php83=\"php:/opt/alt/php83/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+	
+	# ea-php
+	if [[ -z `grep x-httpd-ea-php83 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php83=\"php:/opt/alt/php83/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php82 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php82=\"php:/opt/alt/php82/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php81 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php81=\"php:/opt/alt/php81/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php80 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php80=\"php:/opt/alt/php80/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php74 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php74=\"php:/opt/alt/php74/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php73 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php73=\"php:/opt/alt/php73/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php72 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php72=\"php:/opt/alt/php72/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php71 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php71=\"php:/opt/alt/php71/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php70 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php70=\"php:/opt/alt/php70/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php56 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php56=\"php:/opt/alt/php56/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php55 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php55=\"php:/opt/alt/php55/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php54 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php54=\"php:/opt/alt/php54/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php53 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php53=\"php:/opt/alt/php53/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	# alt-php
+	if [[ -z `grep x-httpd-alt-php83 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php83=\"php:/opt/alt/php83/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php82 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php82=\"php:/opt/alt/php82/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php81 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php81=\"php:/opt/alt/php81/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php80 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php80=\"php:/opt/alt/php80/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php74 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php74=\"php:/opt/alt/php74/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php73 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php73=\"php:/opt/alt/php73/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php72 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php72=\"php:/opt/alt/php72/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php71 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php71=\"php:/opt/alt/php71/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php70 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php70=\"php:/opt/alt/php70/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php56 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php56=\"php:/opt/alt/php56/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php55 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php55=\"php:/opt/alt/php55/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php54 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php54=\"php:/opt/alt/php54/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php53 /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php53=\"php:/opt/alt/php53/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	# ea-lsphp
+	if [[ -z `grep x-httpd-ea-php83___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php83___lsphp=\"php:/opt/alt/php83/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php82___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php82___lsphp=\"php:/opt/alt/php82/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php81___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php81___lsphp=\"php:/opt/alt/php81/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php80___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php80___lsphp=\"php:/opt/alt/php80/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php74___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php74___lsphp=\"php:/opt/alt/php74/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php73___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php73___lsphp=\"php:/opt/alt/php73/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php72___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php72___lsphp=\"php:/opt/alt/php72/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php71___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php71___lsphp=\"php:/opt/alt/php71/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php70___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php70___lsphp=\"php:/opt/alt/php70/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php56___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php56___lsphp=\"php:/opt/alt/php56/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php55___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php55___lsphp=\"php:/opt/alt/php55/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php54___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php54___lsphp=\"php:/opt/alt/php54/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-ea-php53___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-ea-php53___lsphp=\"php:/opt/alt/php53/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	# alt-lsphp
+	if [[ -z `grep x-httpd-alt-php83___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php83___lsphp=\"php:/opt/alt/php83/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php82___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php82___lsphp=\"php:/opt/alt/php82/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php81___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php81___lsphp=\"php:/opt/alt/php81/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php80___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php80___lsphp=\"php:/opt/alt/php80/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php74___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php74___lsphp=\"php:/opt/alt/php74/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php73___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php73___lsphp=\"php:/opt/alt/php73/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php72___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php72___lsphp=\"php:/opt/alt/php72/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php71___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php71___lsphp=\"php:/opt/alt/php71/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php70___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php70___lsphp=\"php:/opt/alt/php70/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php56___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php56___lsphp=\"php:/opt/alt/php56/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php55___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php55___lsphp=\"php:/opt/alt/php55/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php54___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php54___lsphp=\"php:/opt/alt/php54/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+	if [[ -z `grep x-httpd-alt-php53___lsphp /usr/local/etc/suphp.conf` ]];then
+		echo "application/x-httpd-alt-php53___lsphp=\"php:/opt/alt/php53/usr/bin/php-cgi\"" >> /usr/local/etc/suphp.conf
+	fi
+
+fi
+
+service httpd restart

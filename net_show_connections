@@ -1,0 +1,4 @@
+#!/bin/bash
+# CWP show connection number and sort them by size
+
+netstat -ntu | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -n

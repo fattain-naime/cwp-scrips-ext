@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# check /etc/amavisd/amavisd.conf for bellow config and if not exist then add it
+# $allowed_header_tests{'8bit'} = 0;
+# $allowed_header_tests{'missing'} = 0;
+
+grep '^$allowed_header_tests' /etc/amavisd/amavisd.conf || sed -i '/# REMAINING IMPORTANT VARIABLES ARE LISTED HERE BECAUSE OF LONGER ASSIGNMENTS/i #Bad header config\n$allowed_header_tests{'"'"'8bit'"'"'} = 0;\n$allowed_header_tests{'"'"'missing'"'"'} = 0;\n' /etc/amavisd/amavisd.conf
+
+# Restart is needed after config changes
+# service amavisd restart

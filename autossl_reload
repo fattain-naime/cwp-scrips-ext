@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# check if there was recent changes in the ssl certs
+CERTFILES=`find /etc/pki/tls/certs/ -ctime -1 -name "*.bundle"`
+
+# if there was recent changes check if restart/reload was done and do reload if not
+if [[ ! -z "$CERTFILES" ]];then
+	grep "`date '+%Y-%m-%d' -d '1 day ago'`\|`date '+%Y-%m-%d'`" /var/log/cwp/services_action.log  | grep "nginx:\|httpd:" | grep "reload\|restart" 1> /dev/null 2> /dev/null || /scripts/cwp_api webservers reload
+fi

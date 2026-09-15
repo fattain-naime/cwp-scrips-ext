@@ -1,0 +1,29 @@
+#!/bin/bash
+# CWP Updater script for CWPuser DESIGN
+
+# LOG FOLDER CHECK
+if [ ! -e "/var/log/cwp" ];then
+	mkdir /var/log/cwp
+fi
+
+# UPDATE
+if [ -e "/usr/bin/curl" ];then
+	CHECK_NEW_VERSION=`curl -Ss "http://centos-webpanel.com/webpanel/versions/el7-stable.txt" | awk {'print $4'}`
+	CHECK_CURENT_VERSION=`cat /usr/local/cwpsrv/var/services/users/cwp_theme/version.txt`
+
+	if [[ "$CHECK_NEW_VERSION" -gt "$CHECK_CURENT_VERSION" ]];then
+		CWP_FILENAME="cwp-el7-user-design-$CHECK_NEW_VERSION.zip"
+
+		cd /usr/local/cwpsrv/var/services/
+		wget "static.cdn-cwp.com/files/cwp/el7/$CWP_FILENAME"
+
+		unzip -o $CWP_FILENAME
+		rm -f $CWP_FILENAME
+
+		echo "CWPuser DESIGN Updated to $CHECK_NEW_VERSION" >> /var/log/cwp/cwp_update.log
+
+	fi
+
+else
+	echo "FAILED: CURL not installed, try: yum install curl"
+fi

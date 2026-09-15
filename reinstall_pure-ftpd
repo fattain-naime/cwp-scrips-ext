@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Remove pure-ftpd
+yum -y remove pure-ftpd
+
+# Install pure-ftpd from epel repositority
+yum -y install pure-ftpd --enablerepo=epel
+
+# Create pure-ftpd user conf and database
+if [ ! -e "/etc/pure-ftpd/pureftpd.passwd" ];then
+	touch /etc/pure-ftpd/pureftpd.passwd
+	pure-pw mkdb /etc/pure-ftpd/pureftpd.pdb -f /etc/pure-ftpd/pureftpd.passwd -m
+fi
+
+# Modify pure-ftpd conf to accept different auth types
+if [ -e "/etc/pure-ftpd/pure-ftpd.conf" ];then
+	sed -i 's|.*pureftpd.pdb.*|PureDB /etc/pure-ftpd/pureftpd.pdb|g' /etc/pure-ftpd/pure-ftpd.conf
+	sed -i 's|.*PAMAuthentication.*yes|PAMAuthentication    yes|g' /etc/pure-ftpd/pure-ftpd.conf
+	sed -i 's|.*UnixAuthentication.*yes|UnixAuthentication       yes|g' /etc/pure-ftpd/pure-ftpd.conf
+
+	if [ -e "/etc/pki/tls/private/hostname.key" ];then
+		if [ -e "/etc/pki/tls/certs/hostname.bundle" ];then
+			cat /etc/pki/tls/private/hostname.key > /etc/pki/tls/private/hostname.pem
+			cat /etc/pki/tls/certs/hostname.bundle >> /etc/pki/tls/private/hostname.pem
+			chmod 600 /etc/pki/tls/private/hostname.pem
+			sed -i "/^CertFile/d" /etc/pure-ftpd/pure-ftpd.conf
+			sed -i "/^CertFileAndKey/d" /etc/pure-ftpd/pure-ftpd.conf
+			sed -i "/^TLS.*/d" /etc/pure-ftpd/pure-ftpd.conf
+			echo "TLS 1" >> /etc/pure-ftpd/pure-ftpd.conf
+			echo "TLSCipherSuite HIGH:MEDIUM:+TLSv1:!SSLv2:!SSLv3" >> /etc/pure-ftpd/pure-ftpd.conf
+			echo 'CertFile /etc/pki/tls/private/hostname.pem' >> /etc/pure-ftpd/pure-ftpd.conf
+		fi
+	fi
+fi
+
+# Autostart pure-ftpd on boot
+chkconfig pure-ftpd on
+
+# Install pure-ftpd TLS
+sh /scripts/install_pure-ftpd_tls

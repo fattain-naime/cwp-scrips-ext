@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo "CWP Imagick Installer"
+echo "################################"
+echo ""
+
+yum -y install ImageMagick ImageMagick-devel ImageMagick-perl
+cd /usr/local/src
+rm -Rf imagick-3.1.0RC2
+rm -Rf imagick-3.1.0RC2.tgz
+wget http://static.cdn-cwp.com/files/php/pecl/imagick-3.1.0RC2.tgz
+tar zxf imagick-3.1.0RC2.tgz
+cd imagick-3.1.0RC2
+phpize
+ln -s /usr/local/include/ImageMagick-6 /usr/local/include/ImageMagick
+./configure
+make clean
+make
+make install
+echo ""
+grep "imagick.so" /usr/local/php/php.ini || echo "extension=imagick.so" >> /usr/local/php/php.ini
+php -m|grep imagick && echo "Imagick Installed, please restart apache to load changes !" || echo "Imagick NOT Installed !"

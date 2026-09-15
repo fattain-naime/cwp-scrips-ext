@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+##################################
+# CentOS Web Panel SCRIPT's
+###################################
+
+echo "SUBDOMAIN | DOMAIN | USER | PATH"
+echo "#################################"
+
+mysql root_cwp -B -N -s -e "SELECT subdomain,domain,user,path FROM subdomains" | while read -r line
+do
+  echo "$line"
+done

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Restart CWP panel & CWP-php
+
+systemctl restart cwpsrv.service
+systemctl restart cwpsrv-phpfpm.service
+systemctl restart cwp-phpfpm.service

@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+##################################
+# CentOS Web Panel SCRIPT's
+###################################
+# This scripts returns the owner of account if reseller or root
+# Usage: /scripts/userowner USERNAME
+VER="1.0"
+NO_COLOUR="\e[39m"
+COLOR="\e[33m"
+CHKUSER=$1
+CHK_USER=`mysql -Droot_cwp -e "select id from user where username='$CHKUSER';" -B|sed '1d'`
+CHK_RESELLER=`mysql -Droot_cwp -e "select reseller from user where username='$CHKUSER';" -B|sed '1d'`
+
+if [ ! -z "$CHK_USER" ];then
+	echo -e $COLOR"Checking Reseller:"$NO_COLOUR
+
+	if [ ! -z "$CHK_RESELLER" ];then
+		echo $CHK_RESELLER
+	else
+		echo root
+	fi
+else
+	echo -e $COLOR"User NOT FOUND"$NO_COLOUR
+fi

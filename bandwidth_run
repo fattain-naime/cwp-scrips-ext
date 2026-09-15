@@ -1,0 +1,25 @@
+#!/bin/bash
+# Don't run this file directly as this is run by cwp update script
+
+domain=$1
+username=$2
+
+bytes_file="/usr/local/apache/domlogs/$domain.bytes"
+bytes=0
+
+if [ -e "$bytes_file" ];then
+	while read line; do
+	    if  [[ "$line" =~ ^[0-9]+$ ]]; then
+	        line=${line#0}
+	        if [ ! -z "$line" ]; then
+	            bytes=$(($bytes + $line))
+	        fi
+	    fi
+	done < $bytes_file
+
+	total=$(echo "$bytes / 1024 / 1024"|bc)
+	echo "$total"
+	echo "" > $bytes_file
+else
+    echo "0"
+fi

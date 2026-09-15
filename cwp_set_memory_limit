@@ -1,0 +1,11 @@
+#!/bin/bash
+
+MEMORYTOTAL=`free -t|tail -n 1|awk {'print $2'}`
+
+if [ "$MEMORYTOTAL" -ge "1000000" ];then
+	sed -i "s/^memory_limit.*/memory_limit = 600M/" /usr/local/cwp/php71/php.ini
+	sed -i "s/^upload_max_filesize.*/upload_max_filesize = 500M/" /usr/local/cwp/php71/php.ini
+	sed -i "s/^post_max_size.*/post_max_size = 550M/" /usr/local/cwp/php71/php.ini
+	sed -i "s/^max_input_time.*/max_input_time 300/" /usr/local/cwp/php71/php.ini
+	sed -i "s/^max_execution_time.*/max_execution_time 300/" /usr/local/cwp/php71/php.ini
+fi

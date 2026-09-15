@@ -1,0 +1,70 @@
+#!/bin/bash
+# CWP DNS Slave2 Sync script for additional dns servers
+
+# Example Config, Don't edit this script
+
+#USERNAME="SLAVE DNS USERNAME"
+#SERVER="SLAVE DNS GUI IP"
+#SSHPORT="22"
+#SOURCESYNCLOCATION="/var/named/slave"
+# Check domain is used for slave dns connection testing can be any or leave as centos-webpanel.com
+#CHECKMAINDNS="centos-webpanel.com"
+#LOCALSYNCLOCATION="/var/named/slave"
+#LOCALCONFFILE="/etc/named/slave_additional.conf"
+
+source /root/dns_sync_slave2.conf
+
+# Check if all required configuration details are specified
+if [ -z "$USERNAME" ] || [ -z "$SERVER" ] || [ -z "$SSHPORT" ] || [ -z "$SOURCESYNCLOCATION" ] || [ -z "$CHECKMAINDNS" ] || [ -z "$LOCALSYNCLOCATION" ] || [ -z "$LOCALCONFFILE" ];then
+	echo "Configuration has missing values!"
+	exit 1
+fi
+
+rsync --out-format="%n%L" -avz --delete  -e "ssh -p $SSHPORT" $USERNAME@$SERVER:$SOURCESYNCLOCATION/ $LOCALSYNCLOCATION/ | gawk '1;{fflush()}' RS='\r|\n' | \
+(
+	while read -r line
+	do
+		NUMBEROFWORDS=`echo "$line" | awk '{print NF}'`
+
+		if [ "$NUMBEROFWORDS" -eq 2 ];then # Check that line has two words
+			# Multiple words detected
+			CHECKFORDELETE=`echo "$line" | awk '{print $1}'`
+			if [ $CHECKFORDELETE = "deleting" ];then
+				DELETEZONE=`echo "$line" | awk '{print $2}'`
+				DELETEZONENAME=`echo "$line" | awk '{print $2}' | sed "s/db\.//"`
+
+				# Delete zone
+				echo "Deleting $DELETEZONENAME"
+				sed -i "/\"$DELETEZONENAME\"/d" $LOCALCONFFILE; rm -f $LOCALSYNCLOCATION/$DELETEZONE; RELOADREQUIRED="yes"
+
+			fi
+		elif [ "$NUMBEROFWORDS" -eq 1 ];then # Check that line has only one word
+			# New zone Add
+			if [ ! -z "$line" ];then # Check that line is not empty
+				if [ "$line" != "./" ];then
+					CHECKFILENAMEVALIDATION=`echo "$line" | grep "^db."`
+
+					if [ ! -z "$CHECKFILENAMEVALIDATION" ];then # Check that filename starts with db.
+						ZONENAME=`echo "$line" | sed "s/db\.//"`
+						echo "Adding New Zone $line"
+						grep "\"$ZONENAME\"" $LOCALCONFFILE 2> /dev/null 1> /dev/null || echo "zone \"$ZONENAME\" { type master; file \"$LOCALSYNCLOCATION/$line\";};" >> $LOCALCONFFILE; RELOADREQUIRED="yes"
+					fi
+				fi
+			fi
+		else
+			# Not in use for now
+			THISISEMPTY="ITS EMPTY"
+		fi
+	done
+
+	# Reload Named service if changes were done
+	if [ ! -z "$CHECKMAINDNS" ];then
+		if [ ! -z "$RELOADREQUIRED" ];then 
+			dig a $CHECKMAINDNS @$SERVER +short && /usr/sbin/service named reload
+		fi
+	else
+		if [ ! -z "$RELOADREQUIRED" ];then
+			/usr/sbin/service named reload
+		fi
+	fi
+)

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+echo "CWP Maldet Installer"
+echo "##########################"
+echo "" 
+cd /usr/local/src
+rm -Rf maldetect-*
+wget http://www.rfxn.com/downloads/maldetect-current.tar.gz
+tar xfz maldetect-current.tar.gz
+cd maldetect-*/
+./install.sh
+maldet -u
+echo ""
+echo "Installation completed"

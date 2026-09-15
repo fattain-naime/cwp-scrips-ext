@@ -1,0 +1,149 @@
+#!/bin/bash
+
+if [ ! -z $1 ];then
+	if [ $1  == "reinstall" ];then
+
+		service cbpolicyd stop
+		yum -y remove cluebringer --setopt=tsflags=noscripts
+
+		# delete database and user
+		mysql --defaults-extra-file=/root/.my.cnf -e "DROP DATABASE postfix_policyd"
+		mysql --defaults-extra-file=/root/.my.cnf -e "DROP USER 'postfix_policyd'@'localhost'"
+		mysql --defaults-extra-file=/root/.my.cnf -e "flush privileges;"
+
+		if [ -e "/etc/cbpolicyd/cluebringer.conf.rpmsave" ];then
+			rm -f /etc/cbpolicyd/cluebringer.conf.rpmsave
+		fi
+
+		if [ -e "/etc/cbpolicyd/cluebringer.conf" ];then
+			rm -f /etc/cbpolicyd/cluebringer.conf
+		fi
+
+		if [ -e "/var/run/cbpolicyd" ];then
+			rm -f /var/run/cbpolicyd
+		fi
+	fi
+
+	if [ $1  == "remove" ];then
+
+		service cbpolicyd stop
+		yum -y remove cluebringer --setopt=tsflags=noscripts
+
+		# delete database and user
+		mysql --defaults-extra-file=/root/.my.cnf -e "DROP DATABASE postfix_policyd"
+		mysql --defaults-extra-file=/root/.my.cnf -e "DROP USER 'postfix_policyd'@'localhost'"
+		mysql --defaults-extra-file=/root/.my.cnf -e "flush privileges;"
+
+		# sed remove config remains and rpm save files		
+		if [ -e "/etc/cbpolicyd/cluebringer.conf.rpmsave" ];then
+			rm -f /etc/cbpolicyd/cluebringer.conf.rpmsave
+		fi
+
+		if [ -e "/etc/cbpolicyd/cluebringer.conf" ];then
+			rm -f /etc/cbpolicyd/cluebringer.conf
+		fi
+
+		if [ -e "/var/run/cbpolicyd" ];then
+			rm -f /var/run/cbpolicyd
+		fi
+
+		if [ -e "/usr/lib/systemd/system/cbpolicyd.service" ];then
+			rm -f /usr/lib/systemd/system/cbpolicyd.service; systemctl daemon-reload
+		fi
+
+		# remove postfix conf
+		grep smtpd_recipient_restrictions /etc/postfix/main.cf|grep :10031 && sed -i "s|check_policy_service inet:127.0.0.1:10031,||g" /etc/postfix/main.cf
+		service postfix restart
+
+		# remove from cwp config
+		sed -i "/^policyd/d" /usr/local/cwp/.conf/postfix.conf
+
+		exit 0		
+	fi
+fi
+
+password=$(</dev/urandom tr -dc A-Za-z0-9 | head -c12)
+
+yum -y install perl-Cache-FastMmap perl-Config-IniFiles perl-Net-CIDR perl-DBD-mysql --enablerepo=epel
+
+cd /usr/local/src
+wget http://static.cdn-cwp.com/files/mail/cluebringer-v2.1.x-201310261831.noarch.rpm
+wget http://static.cdn-cwp.com/files/mail/policyd.sql
+rpm -Uvh cluebringer-v2.1.x-201310261831.noarch.rpm --nodeps
+
+if [ -e "/usr/share/doc/cluebringer-v2.1.x/database/cbpolicyd.mysql.sql" ];then
+	mysql --defaults-extra-file=/root/.my.cnf -e "CREATE DATABASE IF NOT EXISTS postfix_policyd;"
+	mysql --defaults-extra-file=/root/.my.cnf -e "GRANT ALL PRIVILEGES ON \`postfix\_policyd\`.* TO 'postfix_policyd'@'localhost' IDENTIFIED BY '$password';"
+	mysql --defaults-extra-file=/root/.my.cnf -e "FLUSH PRIVILEGES;"
+	mysql --defaults-extra-file=/root/.my.cnf postfix_policyd < /usr/local/src/policyd.sql
+fi
+
+if [ -e "/etc/cbpolicyd/cluebringer.conf" ];then
+	sed -i "s|^DSN=.*|DSN=DBI:mysql:database=postfix_policyd;host=localhost|g" /etc/cbpolicyd/cluebringer.conf
+	sed -i "s|^#Password=.*|Password=$password|g" /etc/cbpolicyd/cluebringer.conf
+	sed -i "s|^Password=.*|Password=$password|g" /etc/cbpolicyd/cluebringer.conf
+	sed -i "s|^#Username=.*|Username=postfix_policyd|g" /etc/cbpolicyd/cluebringer.conf
+
+	sed -i "s|^#cache_file=/var/run/cbpolicyd/cache|cache_file=/var/run/cbpolicyd.cache|g" /etc/cbpolicyd/cluebringer.conf
+	sed -i "s|^#pid_file=/var/run/cbpolicyd/cbpolicyd.pid|pid_file=/var/run/cbpolicyd.pid|g" /etc/cbpolicyd/cluebringer.conf
+fi
+
+# Add policyd config into /etc/postfix/main.cf
+grep smtpd_recipient_restrictions /etc/postfix/main.cf|grep :10031 || sed -i "s|^smtpd_recipient_restrictions = |smtpd_recipient_restrictions = check_policy_service inet:127.0.0.1:10031, |g" /etc/postfix/main.cf
+
+# if centos 7 delete
+# /etc/init.d/cbpolicyd
+
+if [ -e "/usr/lib/systemd/system" ];then
+	rm -f /etc/init.d/cbpolicyd
+
+	if [ -e "/usr/lib/systemd/system/mariadb.service" ];then
+		cat > /usr/lib/systemd/system/cbpolicyd.service <<EOF
+[Unit]
+Description=CWP Policyd for Postfix
+After=syslog.target network.target mariadb.service
+
+[Service]
+Type=simple
+PIDFile=/var/run/cbpolicyd.pid
+ExecStart=/usr/sbin/cbpolicyd -f  /etc/cbpolicyd/cluebringer.conf
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+	else
+		cat > /usr/lib/systemd/system/cbpolicyd.service <<EOF
+[Unit]
+Description=CWP Policyd for Postfix
+After=syslog.target network.target
+
+[Service]
+Type=simple
+PIDFile=/var/run/cbpolicyd.pid
+ExecStart=/usr/sbin/cbpolicyd -f  /etc/cbpolicyd/cluebringer.conf
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+	fi
+	systemctl enable cbpolicyd
+	systemctl daemon-reload
+fi
+
+# fix invalid cbpadmin path in package for cron
+if [[ -e "/usr/sbin/cbpadmin" && -e "/etc/cron.daily/cluebringer" ]];then
+	sed -i "s@/usr/bin/cbpadmin@/usr/sbin/cbpadmin@g" /etc/cron.daily/cluebringer
+fi
+
+rm -f cluebringer-v2.1.x-201310261831.noarch.rpm policyd.sql
+service cbpolicyd restart
+service postfix restart
+
+# make policyd configuration based on the current server packages
+/scripts/cwp_api account update_policyd_all

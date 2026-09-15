@@ -1,0 +1,28 @@
+#!/bin/bash
+# CWP Enable TLS for Pure-FTPd
+
+if [ -e "/etc/pki/tls/private/hostname.key" ];then
+	if [ -e "/etc/pki/tls/certs/hostname.bundle" ];then
+
+		cat /etc/pki/tls/private/hostname.key > /etc/pki/tls/private/hostname.pem
+		cat /etc/pki/tls/certs/hostname.bundle >> /etc/pki/tls/private/hostname.pem
+		chmod 600 /etc/pki/tls/private/hostname.pem
+		sed -i "/^CertFile/d" /etc/pure-ftpd/pure-ftpd.conf
+		sed -i "/^CertFileAndKey/d" /etc/pure-ftpd/pure-ftpd.conf
+		sed -i "/^TLS.*/d" /etc/pure-ftpd/pure-ftpd.conf
+		echo "TLS 1" >> /etc/pure-ftpd/pure-ftpd.conf
+		echo "TLSCipherSuite HIGH:MEDIUM:+TLSv1:!SSLv2:!SSLv3" >> /etc/pure-ftpd/pure-ftpd.conf
+		echo 'CertFile /etc/pki/tls/private/hostname.pem' >> /etc/pure-ftpd/pure-ftpd.conf
+
+		service pure-ftpd restart
+		echo "Installed TLS"
+		exit 0
+	else
+		echo "installation failed: missing file /etc/pki/tls/certs/hostname.bundle"
+		exit 1
+	fi
+else
+	echo "installation failed: missing file /etc/pki/tls/private/hostname.key"
+	exit 1
+fi
+

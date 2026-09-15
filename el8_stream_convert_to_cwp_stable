@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# This script will replace all CentOS official repositories with CWP stable and delayed
+# This script provides additional stability level by delaying CentOS stream updates
+
+isel8stream=`grep -i stream /etc/centos-release|grep 8`
+
+if [ ! -z "$isel8stream" ];then
+	# Removing centos offical repo with CWP delayed
+	rm -f /etc/yum.repos.d/CentOS-Linux-*.repo /etc/yum.repos.d/CentOS-Stream-*.repo
+	rsync -a /usr/local/cwpsrv/htdocs/resources/conf/el8/yum.repos.d/cwp-stable/ /etc/yum.repos.d/
+	dnf clean all
+fi

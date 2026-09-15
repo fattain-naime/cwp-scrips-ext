@@ -1,0 +1,6 @@
+#!/bin/bash
+# Fix MyISAM tables for all databases
+
+for i in `ls /var/lib/mysql/*/*.MYI`;do 
+	myisamchk -r $i
+done

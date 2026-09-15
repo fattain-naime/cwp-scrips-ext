@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Available options: alert-danger, alert-success, alert-info, alert-warning, alert-dismissable
+ALERTCOLOR="$1"
+
+# Example: "Hello world, this is my test message!"
+ALERTSHORTMESSAGE="$2"
+
+# Long message (optional)
+LONGMESSAGE="$3"
+
+# Message ID
+MESSAGEID=`date +"%Y%m%d%H%M%S%N"| md5sum| awk {'print $1'}`
+
+# Configuration file
+MAINCONFFILE="/usr/local/cwp/.conf/notifications.conf"
+
+# Create Alerts folder
+if [ ! -e "/usr/local/cwp/.conf/notifications" ];then
+	mkdir -p /usr/local/cwp/.conf/notifications
+fi
+
+
+# Exit with error if arguments are missing
+if ! [[ "$ALERTCOLOR" =~ ^(alert-danger|alert-success|alert-info|alert-warning|alert-dismissable)$ ]];then
+        echo "error: Unknown alert type $ALERTCOLOR"
+        exit 1
+fi
+
+if [ -z "$ALERTSHORTMESSAGE" ];then
+        echo "error: Missing short message!"
+        # Arguments are missing and you need to check that
+        exit 1
+fi
+
+# Continue with script
+CHECKIFALERTCOLOREXISTS=`grep "\[$ALERTCOLOR\]" $MAINCONFFILE`
+
+if [[ ! -z "$CHECKIFALERTCOLOREXISTS" ]];then
+        sed -i "s/\[$ALERTCOLOR\]/\[$ALERTCOLOR\]\nmessage\[\]\=$MESSAGEID/" $MAINCONFFILE
+else
+    	echo -e "[$ALERTCOLOR]\nmessage[]=$MESSAGEID" >> $MAINCONFFILE
+fi
+
+# Create Short Message
+echo "$ALERTSHORTMESSAGE" > "/usr/local/cwp/.conf/notifications/$MESSAGEID-short.log"
+
+# Create Link for Long Message
+if [ ! -z "$LONGMESSAGE" ];then
+        ln -s "$LONGMESSAGE" "/usr/local/cwp/.conf/notifications/$MESSAGEID-long.log"
+fi
+
+# Output MessageID for System
+echo $MESSAGEID

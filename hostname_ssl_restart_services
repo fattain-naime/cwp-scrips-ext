@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# CWP reload script used only in case of the hostname ssl renewal
+
+/usr/sbin/service httpd reload
+/usr/sbin/service cwpsrv reload
+/usr/sbin/service postfix reload
+/usr/sbin/service dovecot reload
+
+# check for nginx
+if [ -e "/etc/nginx/conf.d/" ];then
+	/usr/sbin/service nginx reload
+fi
+
+BUNDLETIME=`/usr/bin/stat /etc/pki/tls/certs/hostname.bundle -L|grep ^Modify|awk {'print $2'}`
+PEMTIME=`/usr/bin/stat /etc/pki/tls/private/hostname.pem -L|grep ^Modify|awk {'print $2'}`
+CURRENTTIME=`date +"%Y-%m-%d %H:%M:%S"`
+
+if [ "$BUNDLETIME" != "$PEMTIME" ];then
+	if [ -e "/etc/pki/tls/certs/hostname.bundle" ];then
+		if [ -e "/etc/pki/tls/private/hostname.key" ];then
+			cat /etc/pki/tls/private/hostname.key > /etc/pki/tls/private/hostname.pem
+			cat /etc/pki/tls/certs/hostname.bundle >> /etc/pki/tls/private/hostname.pem
+			chmod 600 /etc/pki/tls/private/hostname.key
+			chmod 600 /etc/pki/tls/private/hostname.pem
+			touch -m --date="$BUNDLETIME" /etc/pki/tls/private/hostname.pem
+			/usr/sbin/service pure-ftpd restart
+		fi
+	fi
+fi
+
+echo "$CURRENTTIME Running script: /scripts/hostname_ssl_restart_services" >> /var/log/cwp/services_action.log

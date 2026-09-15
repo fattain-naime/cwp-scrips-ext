@@ -1,0 +1,12 @@
+#!/bin/bash
+# Fix AutoSSL renew to use new path
+
+if [ -e "/root/.acme.sh/cwp_certs/" ];then
+	SSLFILELIST=`grep Le_Webroot /root/.acme.sh/cwp_certs/*/*.conf 2> /dev/null|grep -v "/usr/local/apache/autossl_tmp"|awk -F: {'print $1'}`
+
+	for FILENAME in "$SSLFILELIST"; do
+		if [ ! -z "$FILENAME" ];then
+	    	sed -i "s|^Le_Webroot=.*|Le_Webroot='/usr/local/apache/autossl_tmp'|g" $FILENAME
+	    fi
+	done
+fi

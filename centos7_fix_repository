@@ -1,0 +1,31 @@
+# CentOS7 Repository fix, added 09.02.2025
+sed_escape()
+{
+        # Note: this is not a full implementation
+        echo -n "$1" | sed -e 's|\.|\\.|g'
+}
+old_mirrorlist_host="mirrorlist.centos.org"
+old_host="mirror.centos.org"
+new_host="vault.centos.org"
+
+grep -qFw "$old_host" /etc/yum.repos.d/CentOS-*.repo 2>/dev/null
+backup="`mktemp -d "/tmp/yum.repos.d-$(date --rfc-3339=date)-XXXXXX"`"
+! [ -d "$backup" ] || cp -raT /etc/yum.repos.d "$backup" || :
+
+sed -i \
+        -e "s|^\s*\(mirrorlist\b[^/]*//`sed_escape "$old_mirrorlist_host"`/.*\)$|#\1|" \
+        -e "s|^#*\s*baseurl\b\([^/]*\)//`sed_escape "$old_host"`/\(.*\)$|baseurl\1//$new_host/\2|" \
+        /etc/yum.repos.d/CentOS-*.repo
+
+#OVH FIX
+old_host2="centos.mirrors.ovh.net/ftp.centos.org"
+new_host2="vault.centos.org/centos"
+
+sed -i \
+        -e "s|^\s*\(mirrorlist\b[^/]*//`sed_escape "$old_mirrorlist_host"`/.*\)$|#\1|" \
+        -e "s|^#*\s*baseurl\b\([^/]*\)//`sed_escape "$old_host2"`/\(.*\)$|baseurl\1//$new_host2/\2|" \
+        /etc/yum.repos.d/CentOS-*.repo
+
+
+echo "YUM package manager repositories were backed up to '$backup' and switched from $old_host to $new_host ." >&2
+yum install -y ca-certificates

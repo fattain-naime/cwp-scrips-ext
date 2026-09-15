@@ -1,0 +1,10 @@
+#!/bin/bash
+# Clear varnish cache without restart
+
+if [ -e "/usr/bin/varnishadm" ]; then
+	/usr/bin/varnishadm -S /etc/varnish/secret  -T 127.0.0.1:6082 "ban req.http.host ~ .*"
+	exit 0
+else
+	echo "Varnish file: /usr/bin/varnishadm NOT found"
+	exit 1
+fi

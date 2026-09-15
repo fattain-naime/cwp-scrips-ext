@@ -1,0 +1,16 @@
+#!/bin/bash
+
+CONNECTIONLIMT=$1
+
+if [ ! -z "$CONNECTIONLIMT" ];then
+	/usr/bin/mysql -e "SET GLOBAL max_connections = $CONNECTIONLIMT;"
+	/usr/bin/mysql -e "select @@global.max_connections;"
+	echo 
+	echo "CWP: Please note that this is only temporary setup which will be lost after the mysql restart!"
+	echo "For permanent setup you need to add the following into your /etc/my.cnf file: max_connections = $CONNECTIONLIMT"
+else
+	echo
+	echo "CWP: Please set a new connection limit like this:"
+	echo "/scripts/mysql_set_max_connections 500"
+	echo
+fi

@@ -1,0 +1,111 @@
+#!/bin/sh
+#
+##################################
+# CentOS Web Panel SCRIPT's
+###################################
+
+
+# Check for include folders
+if [ ! -e "/usr/local/cwpsrv/conf.d/users/" ]; then
+    mkdir -p /usr/local/cwpsrv/conf.d/users/
+fi
+
+if [ ! -e "/usr/local/cwp/php71/etc/php-fpm.d/users/" ]; then
+    mkdir -p /usr/local/cwp/php71/etc/php-fpm.d/users/
+fi
+
+# Remove all old to prevent left over user causing server issues
+rm -f /usr/local/cwpsrv/conf.d/users/*.conf /usr/local/cwp/php71/etc/php-fpm.d/users/*.conf
+
+# Per user configuration
+#MYSQLPWD=`grep password= /root/.my.cnf|awk -F= {'print $2'}|sed -e 's/["'\'']//g'|sed 's/ //g'`
+mysql --defaults-extra-file=/root/.my.cnf root_cwp -B -N -s -e "SELECT username FROM user" | while read -r username
+do
+    # Check if user exist on the linux system
+    CHECKPASSWD=`grep "^${username}:" /etc/passwd`
+
+    if [[ ! -z "$CHECKPASSWD" ]];then
+
+        # Check user folder
+        if [ ! -e "/usr/local/cwpsrv/var/services/users/$username" ]; then
+            ln -s /usr/local/cwpsrv/var/services/users /usr/local/cwpsrv/var/services/users/$username
+        fi
+
+        # Create cwpsrv configuration
+	   cat > /usr/local/cwpsrv/conf.d/users/$username.conf <<EOF
+location /$username {
+    root /usr/local/cwpsrv/var/services/users;
+    index  index.html index.htm index.php;
+    include /usr/local/cwpsrv/conf/mime.types;
+    location ~ \.php\$ {
+        try_files \$uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)\$;
+        fastcgi_read_timeout 600;
+        fastcgi_pass    unix:/usr/local/cwp/php71/var/sockets/$username.sock;
+        fastcgi_index   index.php;
+        fastcgi_param   SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
+        fastcgi_param   SCRIPT_NAME   \$fastcgi_script_name;
+        fastcgi_param   PHP_ADMIN_VALUE "open_basedir =/home/$username:/home/jail/$username/./home/$username:/tmp:/var/softtmp:/usr/local/cwpsrv/var/services/users:/usr/local/cwpsrv/var/services/user_files/modules:/usr/local/cwpsrv/var/services/twig:";
+        include                 fastcgi_params;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico)\$ {
+        access_log    off;
+        log_not_found    off;
+        expires 1M;
+    }
+}
+EOF
+
+# Fix issue with suspended accounts
+if [ ! -e "/usr/local/cwp/users/suspended/$username" ];then
+    # Create cwp-phpfpm configuration
+        cat > /usr/local/cwp/php71/etc/php-fpm.d/users/$username.conf <<EOF
+[$username]
+listen = /usr/local/cwp/php71/var/sockets/$username.sock
+;listen.owner = "$username"
+listen.group = "$username"
+listen.mode = 0660
+user = "$username"
+group = "$username"
+request_slowlog_timeout = 5s
+slowlog = /usr/local/cwp/php71/var/log/php-fpm-slowlog-$username.log
+listen.allowed_clients = 127.0.0.1
+pm = ondemand
+pm.max_children = 25
+pm.process_idle_timeout = 15s
+;listen.backlog = -1
+request_terminate_timeout = 0s
+rlimit_files = 131072
+rlimit_core = unlimited
+catch_workers_output = yes
+env[HOSTNAME] = \$HOSTNAME
+env[TMP] = /tmp
+env[TMPDIR] = /tmp
+env[TEMP] = /tmp
+env[PATH] = /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+EOF
+else
+    if [ -e "/usr/local/cwp/php71/etc/php-fpm.d/users/$username.suspended" ];then
+        if [ -e "/usr/local/cwp/php71/etc/php-fpm.d/users/$username.conf" ];then
+            rm -f /usr/local/cwp/php71/etc/php-fpm.d/users/$username.conf
+        fi
+    else
+        if [ -e "/usr/local/cwp/php71/etc/php-fpm.d/users/$username.conf" ];then
+            mv /usr/local/cwp/php71/etc/php-fpm.d/users/$username.conf /usr/local/cwp/php71/etc/php-fpm.d/users/$username.suspended
+        fi
+    fi
+fi
+
+        # Fix conflict usernames
+        if [ "$username" = "global" ];then
+            setnewUsername="${username}cwp"
+            sed -i "s/\[$username\]/[$setnewUsername]/g" /usr/local/cwp/php71/etc/php-fpm.d/users/$username.conf
+        fi
+    fi
+
+done
+
+# Reload CWP services
+service cwpsrv reload
+service cwp-phpfpm reload

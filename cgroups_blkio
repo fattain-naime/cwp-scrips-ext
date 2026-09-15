@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Check if /home partition exists
+CDEVICE=`df | grep " /home$" | awk {'print $1'}` 
+
+# use / partition if /home doesn't exist
+if [ -z "$CDEVICE" ];then
+	CDEVICE=`df | grep " /$" | awk {'print $1'}` 
+fi
+
+CDEVICE2=`echo $CDEVICE |xargs lsblk -no pkname 2> /dev/null| sed '/^$/d'`
+
+if [ ! -z "$CDEVICE2" ];then
+    CDEVICE=`echo $CDEVICE | xargs lsblk -no pkname` ; echo /dev/$CDEVICE | awk {'print $1'} | xargs ls -lH | awk {'print $5,$6'} | tr -d ' '| sed "s/\,/:/"
+else
+    echo $CDEVICE | xargs ls -lH | awk {'print $5,$6'} | tr -d ' ' | sed "s/\,/:/" 
+fi

@@ -1,0 +1,27 @@
+#!/bin/bash
+# CWPscripts: Check for bad tables
+
+# Configuration
+logfilelocation="/var/log/mysqlcheck.log"
+
+# Remove old log file
+rm -f $logfilelocation
+
+# Scan all tables
+for database in `mysql -e "show databases;" -B --skip-column-names |grep -v "information_schema\|performance_schema"`;do
+    for table in `mysql $database -e "show tables;" -B --skip-column-names`;do
+        #mysqlcheck $database $table |grep -v "OK" 2>&1 >> /root/mysqlcheck.txt
+        checktable=`mysqlcheck $database $table | grep -v "OK" 2>&1`
+
+        if [ ! -z "$checktable" ];then
+            echo "|DATABASE: $database| |TABLE: $table| ERROR: $checktable" >> $logfilelocation
+        fi
+    done
+done
+
+# Send alert in CWP
+if [ -e "/scripts/add_alert" ];then
+    if [ -e "$logfilelocation" ];then
+        sh /scripts/add_alert alert-danger "Bad or Corrupted MySQL Databases/Tables detected!" $logfilelocation
+    fi
+fi

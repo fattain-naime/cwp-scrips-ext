@@ -1,0 +1,86 @@
+#!/bin/sh
+#
+##################################
+# CentOS Web Panel SCRIPT's
+###################################
+
+# this is only a test script, now for productions usage
+exit 1
+
+# Check for include folders
+for phpfpmver in `echo 53 54 55 56 7 70 71 72`;do
+
+
+    if [ -e "/opt/alt/php-fpm$phpfpmver" ];then
+        if [ ! -e "/opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/" ]; then
+            mkdir -p /opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/
+        fi
+
+        # Remove all old to prevent left over user causing server issues
+        rm -f /opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/*.conf
+
+        # Per user configuration
+        #MYSQLPWD=`grep password= /root/.my.cnf|awk -F= {'print $2'}|sed -e 's/["'\'']//g'|sed 's/ //g'`
+        mysql --defaults-extra-file=/root/.my.cnf root_cwp -B -N -s -e "SELECT username FROM user"| while read -r username
+        do
+            # Check if user exist on the linux system
+            CHECKPASSWD=`grep "^${username}:" /etc/passwd`
+
+            if [[ ! -z "$CHECKPASSWD" ]];then
+
+                if [ -e "/opt/alt/php-fpm$phpfpmver" ];then
+
+                    # Fix issue with suspended accounts
+                    if [ ! -e "/usr/local/cwp/users/suspended/$username" ];then
+            # Create cwp-phpfpm configuration
+                cat > /opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/$username.conf <<EOF
+[$username]
+listen = /opt/alt/php-fpm$phpfpmver/usr/var/sockets/$username.sock
+;listen.owner = $username
+listen.group = nobody
+listen.mode = 0660
+user = $username
+group = $username
+;request_slowlog_timeout = 15s
+;slowlog = /opt/alt/php-fpm$phpfpmver/usr/var/log/php-fpm-slowlog-$username.log
+listen.allowed_clients = 127.0.0.1
+pm = ondemand
+pm.max_children = 5
+pm.process_idle_timeout = 15s
+;listen.backlog = -1
+request_terminate_timeout = 0s
+rlimit_files = 131072
+rlimit_core = unlimited
+catch_workers_output = yes
+env[HOSTNAME] = \$HOSTNAME
+env[TMP] = /home/$username/tmp
+env[TMPDIR] = /home/$username/tmp
+env[TEMP] = /home/$username/tmp
+env[PATH] = /usr/local/bin:/usr/bin:/bin
+EOF
+                    else
+                        if [ -e "/opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/$username.suspended" ];then
+                            if [ -e "/opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/$username.conf" ];then
+                                rm -f /opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/$username.conf
+                            fi
+                        else
+                            if [ -e "/opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/$username.conf" ];then
+                                mv /opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/$username.conf /opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/$username.suspended
+                            fi
+                        fi
+                    fi
+
+                    # Fix conflict usernames
+                    if [ "$username" = "global" ];then
+                        setnewUsername="${username}cwp"
+                        sed -i "s/\[$username\]/[$setnewUsername]/g" /opt/alt/php-fpm$phpfpmver/usr/etc/php-fpm.d/users/$username.conf
+                    fi
+                fi
+            fi
+        done
+        service php-fpm$phpfpmver restart
+    fi
+done
+
+# Reload CWP services
+

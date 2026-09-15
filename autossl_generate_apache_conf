@@ -1,0 +1,29 @@
+cat > /usr/local/apache/conf.d/autossl_proxy.conf <<EOF
+<IfModule !proxy_module>
+        LoadModule proxy_module modules/mod_proxy.so
+</IfModule>
+
+<IfModule !proxy_connect_module>
+        LoadModule proxy_connect_module modules/mod_proxy_connect.so
+</IfModule>
+
+<IfModule !proxy_http_module>
+        LoadModule proxy_http_module modules/mod_proxy_http.so
+</IfModule>
+
+ProxyPass /.well-known/acme-challenge !
+ProxyPass /.well-known/pki-validation !
+
+Alias /.well-known/acme-challenge /usr/local/apache/autossl_tmp/.well-known/acme-challenge
+Alias /.well-known/pki-validation /usr/local/apache/autossl_tmp/.well-known/acme-challenge
+
+<Directory "/usr/local/apache/autossl_tmp/.well-known/acme-challenge">
+    Options None
+    AllowOverride None
+    Require all granted
+    AddDefaultCharset off
+</Directory>
+EOF
+
+# Reload apache
+service httpd reload

@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Required for servers using other lang
+LANG=en_US.UTF-8
+
+domain=$1
+username=$2
+
+# Goaccess stats
+if [ -e "/usr/bin/goaccess" ];then
+
+	if [ ! -e "/etc/goaccess.conf" ];then
+		wget static.cdn-cwp.com/files/3rdparty/stats/goaccess/goaccess.conf -O /etc/goaccess.conf
+	fi
+
+	if [ -e "/home/$username" ];then
+
+		if [ ! -e "/home/$username/cwp_stats/goaccess" ];then
+			if [ ! -e "/home/$username/cwp_stats" ];then
+				mkdir /home/$username/cwp_stats
+				test -h "/home/$username/cwp_stats" || chown $username.$username /home/$username/cwp_stats 2> /dev/null 1> /dev/null
+			fi
+
+			mkdir /home/$username/cwp_stats/goaccess 2> /dev/null 1> /dev/null
+			test -h "/home/$username/cwp_stats/goaccess" || chown $username.$username /home/$username/cwp_stats/goaccess 2> /dev/null 1> /dev/null
+		fi
+
+		if [ ! -e "/home/$username/cwp_stats/goaccess/daily" ];then
+			mkdir -p /home/$username/cwp_stats/goaccess/daily 2> /dev/null 1> /dev/null
+			test -h "/home/$username/cwp_stats/goaccess/daily" || chown $username.$username /home/$username/cwp_stats/goaccess/daily 2> /dev/null 1> /dev/null
+		fi
+		if [ ! -e "/home/$username/cwp_stats/goaccess/weekly" ];then
+			mkdir -p /home/$username/cwp_stats/goaccess/weekly 2> /dev/null 1> /dev/null
+			test -h "/home/$username/cwp_stats/goaccess/weekly" || chown $username.$username /home/$username/cwp_stats/goaccess/weekly 2> /dev/null 1> /dev/null
+		fi
+		if [ ! -e "/home/$username/cwp_stats/goaccess/monthly" ];then
+			mkdir -p /home/$username/cwp_stats/goaccess/monthly 2> /dev/null 1> /dev/null
+			test -h "/home/$username/cwp_stats/goaccess/monthly" || chown $username.$username /home/$username/cwp_stats/goaccess/monthly 2> /dev/null 1> /dev/null
+		fi
+		
+		if [ -e "/usr/local/apache/domlogs/$domain.log" ];then
+			#daily log
+			grep "\[`date '+%d/%b/%Y' -d '1 day ago'`" /usr/local/apache/domlogs/"$domain".log | goaccess - --no-progress --output=/home/"$username"/cwp_stats/goaccess/daily/"$domain"_`date +%F -d '1 day ago'`.html -p /etc/goaccess.conf 2> /dev/null 1> /dev/null
+
+			#weekly log
+			weekDate=`date +%u`
+			if [ "$weekDate" = "7" ];then
+				grep "\[`date '+%d/%b/%Y' -d '1 day ago'`\|\[`date '+%d/%b/%Y' -d '2 day ago'`\|\[`date '+%d/%b/%Y' -d '3 day ago'`\|\[`date '+%d/%b/%Y' -d '4 day ago'`\|\[`date '+%d/%b/%Y' -d '5 day ago'`\|\[`date '+%d/%b/%Y' -d '6 day ago'`\|\[`date '+%d/%b/%Y' -d '7 day ago'`" /usr/local/apache/domlogs/"$domain".log | goaccess - --no-progress --output=/home/"$username"/cwp_stats/goaccess/weekly/"$domain"_`date +%F -d '1 day ago'`.html -p /etc/goaccess.conf 2> /dev/null 1> /dev/null
+			fi
+
+			#monthly log
+			todayDate=`date +%d`
+			if [ "$todayDate" = "01" ];then
+				grep "`date '+/%b/%Y' -d '1 month ago'`" /usr/local/apache/domlogs/"$domain".log | goaccess - --no-progress --output=/home/"$username"/cwp_stats/goaccess/monthly/"$domain"_`date +%F -d '1 day ago'`.html -p /etc/goaccess.conf 2> /dev/null 1> /dev/null
+				# Delete old logs
+				SEARCHDATE=`date '+/%b/%Y' -d '2 months ago'`
+				sed -i "\@$SEARCHDATE@d" /usr/local/apache/domlogs/"$domain".log 2> /dev/null 1> /dev/null
+				sed -i "\@$SEARCHDATE@d" /usr/local/apache/domlogs/"$domain".error.log 2> /dev/null 1> /dev/null
+
+				# Delete old daily stat files
+				find /home/"$username"/cwp_stats/goaccess/daily/ -type f -name "*.html" -mtime +45 -exec rm -f {} \; 2> /dev/null 1> /dev/null
+				chown $username.$username /home/"$username"/cwp_stats/goaccess/daily/*
+
+				# Delete old weekly stat files
+				find /home/"$username"/cwp_stats/goaccess/weekly/ -type f -name "*.html" -mtime +90 -exec rm -f {} \; 2> /dev/null 1> /dev/null
+				chown $username.$username /home/"$username"/cwp_stats/goaccess/weekly/*
+
+				# Delete old monthly stat files
+				find /home/"$username"/cwp_stats/goaccess/monthly/ -type f -name "*.html" -mtime +365 -exec rm -f {} \; 2> /dev/null 1> /dev/null
+				chown $username.$username /home/"$username"/cwp_stats/goaccess/monthly/*
+			fi
+		fi
+		
+	fi 
+fi

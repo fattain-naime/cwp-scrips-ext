@@ -1,0 +1,51 @@
+#!/bin/bash
+
+#Settings
+MAXLOAD=1
+CRITICALLOAD=
+LOAD=$(cat /proc/loadavg|awk {'print $1'}|cut -d. -f1)
+CORENUMBER=$(cat /proc/cpuinfo |grep processor | wc -l)
+TIMENOW=$(date +'%F_%T')
+LOGFILE="/var/log/high_load/${TIMENOW}.log"
+
+
+if [ ! $CRITICALLOAD ]
+then
+        CRITICALLOAD="$((CORENUMBER * 3))"
+fi
+
+#critical load radi samo ako nije podesen taj critical load
+# criticalo load je za male servere *3 a vece *4
+# mogucnost postavljanja higher,trigger i critical loada u panelu
+# mogucnost postavljanja funkcija sta da server napravi u tom slucaju.
+
+#Testing Area
+echo "Critical load is set to: ${CRITICALLOAD}"
+
+#Functions
+if [ ! -e "/var/log/high_load" ]
+then
+mkdir /var/log/high_load
+fi
+
+
+if [ "$LOAD" -ge "$MAXLOAD" ]; then
+    echo "Load is High: ${LOAD}"
+        top -n1 -bc > $LOGFILE
+        echo "" >> $LOGFILE
+        echo "" >> $LOGFILE
+        ps auxf >> $LOGFILE
+
+        if [ "$LOAD" -ge "$CRITICALLOAD" ]; then
+                killall -9 php
+				killall -9 php
+				killall -9 php
+                /etc/init.d/httpd stop
+                sleep 30
+                /etc/init.d/httpd start
+                echo
+        fi
+fi
+
+
+exit 1

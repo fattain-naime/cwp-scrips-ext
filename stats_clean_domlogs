@@ -1,0 +1,8 @@
+#!/bin/bash
+# This script will delete all lines older than 2 months from the domlog files 
+# as those log lines are not needed anymore to build graphs.
+
+for i in `ls /usr/local/apache/domlogs/*.log`;do
+	SEARCHDATE=`date '+/%b/%Y' -d '2 months ago'`
+	ionice -c 3 nice -n +19 sed -i "1,\@$SEARCHDATE@d" $i
+done

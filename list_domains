@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+##################################
+# CentOS Web Panel SCRIPT's
+###################################
+
+echo "DOMAIN | USER | PATH"
+echo "#################################"
+mysql root_cwp -B -N -s -e "SELECT domain,user,path FROM domains" | while read -r line
+do
+  echo "$line"
+done

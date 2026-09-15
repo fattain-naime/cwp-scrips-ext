@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# ==============================================================================
+# READ-ONLY Quota System Diagnostic Script
+# Suitable for Control Panel Integration (CWP)
+# Checks: Dedicated, KVM, Xen, OpenVZ, LXC, and Docker environments.
+# Returns: Exit Code 0 = Quota Working | Exit Code 1 = Quota Not Working/Missing
+# ==============================================================================
+# Usage
+#exec("/bin/bash /path/to/check_quota_status.sh", $output, $return_var);
+#if ($return_var !== 0) {
+#    // Prikaži upozorenje u panelu
+#}
+
+# Colors for terminal output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+echo -e "${CYAN}====================================================${NC}"
+echo -e "${CYAN}        SERVER QUOTA SYSTEM DIAGNOSTIC TOOL         ${NC}"
+echo -e "${CYAN}====================================================${NC}\n"
+
+# 1. Environment / Virtualization Detection
+VIRT_TYPE="Baremetal / Dedicated"
+
+if [ -f /proc/user_beancounters ] || [ -d /proc/vz ]; then
+    VIRT_TYPE="OpenVZ / Virtuozzo"
+elif [ -f /.dockerenv ]; then
+    VIRT_TYPE="Docker Container"
+elif command -v systemd-detect-virt >/dev/null 2>&1; then
+    DETECTED=$(systemd-detect-virt)
+    if [ "$DETECTED" != "none" ]; then
+        VIRT_TYPE="Virtualization: $DETECTED"
+    fi
+fi
+
+echo -e "Environment Detected: ${YELLOW}$VIRT_TYPE${NC}\n"
+
+QUOTA_WORKING=0
+REASON=""
+
+# 2. OpenVZ / LXC Container Check
+if [[ "$VIRT_TYPE" == *"OpenVZ"* ]]; then
+    echo -n "[1/3] Checking Container 2nd-Level Quota support... "
+    if grep -q "quota" /proc/vz/vzaquota/status 2>/dev/null || quota -u root >/dev/null 2>&1; then
+        echo -e "${GREEN}PASSED${NC}"
+        QUOTA_WORKING=1
+    else
+        echo -e "${RED}FAILED${NC}"
+        REASON="OpenVZ host node has not enabled 2nd-level quota for this container."
+    fi
+fi
+
+# 3. Mount Options Check (/proc/mounts) - Strict regex to ignore 'noquota'
+echo -n "[2/3] Checking Filesystem Mount Options (usrquota/grpquota)... "
+MOUNT_CHECK=$(cat /proc/mounts | grep -v "noquota" | grep -E '\b(usrquota|grpquota|usrjquota|grpjquota|prsquo)\b')
+
+if [ -n "$MOUNT_CHECK" ]; then
+    echo -e "${GREEN}PASSED${NC}"
+    echo -e "      Mounted Partitions with Quota:"
+    echo "$MOUNT_CHECK" | awk '{print "      -> Mount Point: " $2 " (" $1 ") - Options: " $4}'
+else
+    echo -e "${RED}FAILED${NC}"
+    if [ -z "$REASON" ]; then
+        REASON="No filesystem partitions are mounted with active 'usrquota' or 'grpquota' (found 'noquota' or missing options)."
+    fi
+fi
+
+# 4. Binary Tools Execution Check (repquota / quotaon)
+echo -n "[3/3] Testing 'repquota' binary execution... "
+
+if command -v repquota >/dev/null 2>&1; then
+    TEST_REPQUOTA=$(repquota -a 2>/dev/null | head -n 5)
+    if [ -n "$TEST_REPQUOTA" ]; then
+        echo -e "${GREEN}PASSED${NC}"
+        QUOTA_WORKING=1
+    else
+        echo -e "${RED}FAILED${NC}"
+        if [ -z "$REASON" ]; then
+            REASON="The 'repquota' tool is installed, but returned an error or empty output when queried."
+        fi
+    fi
+else
+    echo -e "${YELLOW}NOT INSTALLED${NC}"
+    if [ -z "$REASON" ]; then
+        REASON="The 'quota' package is not installed on this OS."
+    fi
+fi
+
+echo -e "\n${CYAN}====================================================${NC}"
+echo -e "${CYAN}                   SUMMARY STATUS                   ${NC}"
+echo -e "${CYAN}====================================================${NC}"
+
+if [ $QUOTA_WORKING -eq 1 ]; then
+    echo -e "RESULT: ${GREEN}[PASS] Quota system is active and operational.${NC}"
+    echo -e "DETAILS: User/Group disk and inode tracking via quota is working properly."
+    echo -e "${CYAN}====================================================${NC}\n"
+    exit 0
+else
+    echo -e "RESULT: ${RED}[FAIL] Quota system is INACTIVE or MISCONFIGURED!${NC}"
+    echo -e "DETAILS: $REASON"
+    echo -e "ACTION REQUIRED: Enable 'usrquota' in /etc/fstab or grub config, remount partitions, and run quotacheck."
+    echo -e "${CYAN}====================================================${NC}\n"
+    exit 1
+fi

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Target file path
+CONF_FILE="/usr/local/cwpsrv/conf/cwpsrv.conf"
+
+# STEP 1: Clean up previous blocks and both old/new access logs directly in the file
+# This runs in-place (-i) and wipes any older setups to prevent duplication.
+sed -i -e '/map \$http_x_real_ip/,/}/d' \
+       -e '/log_format main/d' \
+       -e '/access_log  logs\/access_log main;/d' \
+       -e '/access_log  logs\/access_log;/d' "$CONF_FILE"
+
+# STEP 2: Define the fresh configuration block using English variable names
+NEW_BLOCK="    map \$http_x_real_ip \$real_client_ip {\n        \"\"    \$remote_addr;\n        default \$http_x_real_ip;\n    }\n\n    log_format main '\$real_client_ip - \$remote_user [\$time_local] \"\$request\" \$status \$body_bytes_sent \$http_referer \$http_user_agent';\n\n    access_log  logs\/access_log main;"
+
+# STEP 3: Inject the new block directly one line below 'http {'
+sed -i "/http {/a \\$NEW_BLOCK" "$CONF_FILE"
+
+
+# TEMP FIX FOR CWPSRV
+# 1. Dodaj ssl uz port 2304 (ako već nije dodan)
+sed -i -E 's/listen[[:space:]]+2304;/listen 2304 ssl;/' /usr/local/cwpsrv/conf.d/api.conf
+
+# 2. Zakomentiraj ili ukloni zastarjelo 'ssl on;'
+sed -i -E 's/^[[:space:]]*ssl[[:space:]]+on;/    # ssl on;/' /usr/local/cwpsrv/conf.d/api.conf
+
+# 3. Zamijeni hostname.crt s hostname.bundle
+sed -i 's|/etc/pki/tls/certs/hostname.crt|/etc/pki/tls/certs/hostname.bundle|g' /usr/local/cwpsrv/conf.d/api.conf
+# END TEMP FIX FOR CWP
+
+# STEP 4: Restart the server to apply changes immediately
+systemctl restart cwpsrv
+
+echo "CWP configuration updated directly. Panel restarted!"
+

@@ -1,0 +1,12 @@
+#!/bin/bash
+# Check for mostly know hacked servers
+
+ISMYSERVERHACKED=`ps uaxf|grep "uptime\|who\|ifconfig\|pwd\|whoami\|netstat"|grep -v grep|awk {'print $2'}|head -n 1|xargs lsof -p|grep deleted`
+
+if [ -e "/usr/sbin/lsof" ];then
+	if [ ! -e "ISMYSERVERHACKED" ];then
+		echo "Your server could be hacked, please check the server processes list!"
+	fi
+else
+	yum -y install lsof
+fi

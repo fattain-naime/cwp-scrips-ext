@@ -1,0 +1,29 @@
+#!/bin/bash
+# Script to import all email accounts from /var/vmail folder
+# For Each mailbox account you will need to change password after running this
+
+echo > /root/mailbox_import.sql
+for i in `find /var/vmail/ -maxdepth 1 -type d -name "*.*" |grep -v ".Sent\|.Drafts\|.Trash\|.Junk"`;do
+	for b in `find $i -maxdepth 1 -type d`;do
+		if [[ ! -z "$b" ]];then
+			if [[ "$i" != "$b" ]];then
+				echo ""##############################""
+				#echo "$i $b"
+
+				CDOMAIN=`echo $i| sed s@/var/vmail/@@`
+				CUSER=`echo $b | sed s@$i/@@`
+				CUID=`id`
+				CPATH=`echo $b | sed s@/var/vmail/@@`
+				echo "Domain: $CDOMAIN User: $CUSER MailDir: $b"
+				echo "INSERT IGNORE INTO \`mailbox\` (username,name,password,maildir,local_part,quota,domain,active) VALUES ('$CUSER@$CDOMAIN', '', '{MD5-CRYPT}$1$EVqZf6gl$I/ny..4BkHGoi/8mPLwQM0', '$CPATH/', '$CUSER', '0', '$CDOMAIN', 1);" >> /root/mailbox_import.sql
+
+
+				echo "##############################"
+			fi
+		fi
+	done
+
+done
+
+mysql --defaults-extra-file=/root/.my.cnf postfix < /root/mailbox_import.sql
+/scripts/cwp_api account mail_fix_permissions

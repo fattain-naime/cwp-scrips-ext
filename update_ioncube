@@ -1,0 +1,31 @@
+#!/bin/bash
+# ionCube Installer/Updates by CWP
+####################################
+
+platform="x86-64"
+
+ioncube="http://static.cdn-cwp.com/files/php/ioncube_loaders_lin_$platform.tar.gz"
+
+cd /tmp
+
+# Clean OLD ionCube
+###########################
+rm -Rf /usr/local/ioncube 2> /dev/null
+rm -Rf ioncube 2> /dev/null
+rm -f ioncube_loaders_lin_*.tar.gz 2> /dev/null
+
+# Install ionCube
+###########################
+wget -q $ioncube
+tar -xf ioncube_loaders_lin_*.tar.gz
+mv ioncube/ /usr/local/
+rm -f ioncube_loaders_lin_*.tar.gz
+
+# ::: INFO :::
+# We will not define restarts required here as you need to know for what you are using ioncube and then restart that service.
+# With CWP you will need to restart httpd and cwpsrv.
+# You can restart cwpsrv : /scripts/restart_cwpsrv
+
+if [ "$1" = "restart" ];then
+	sh /scripts/restart_cwpsrv
+fi

@@ -1,0 +1,23 @@
+#!/bin/bash
+## PosgreSQL phpPgAdmin ##
+
+/usr/bin/wget http://static.cdn-cwp.com/files/postgresql/phpPgAdmin-5.1.tar.gz -O /usr/local/src/phpPgAdmin-5.1.tar.gz >/dev/null 2>&1
+
+if [ $? -ne 0 ]; then 
+	echo 'Error. Check your wget and network' ; 
+	exit $?; 
+fi
+
+/bin/tar -xf /usr/local/src/phpPgAdmin-5.1.tar.gz -C /usr/local/cwpsrv/var/services/
+/bin/rm -f /usr/local/src/phpPgAdmin-5.1.tar.gz
+/bin/mv /usr/local/cwpsrv/var/services/phpPgAdmin-5.1 /usr/local/cwpsrv/var/services/phpPgAdmin
+if [ -d /usr/local/cwpsrv/var/services/phpPgAdmin ]; then
+	/bin/chown -R cwpsvc:cwpsvc /usr/local/cwpsrv/var/services/phpPgAdmin
+	cat > /usr/local/apache/conf.d/postgresql.conf <<EOF
+Alias /pgadmin /usr/local/apache/htdocs/phpPgAdmin
+Alias /phppgadmin /usr/local/apache/htdocs/phpPgAdmin
+Alias /phpPgAdmin /usr/local/apache/htdocs/phpPgAdmin
+EOF
+else
+	echo '/usr/local/cwpsrv/var/services/phpPgAdmin is not directory!'
+fi

@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+##################################
+# CentOS Web Panel SCRIPT's
+###################################
+
+echo "USERNAME | DOMAIN | IP ADDRESS | EMAIL | PACKAGE ID | BACKUP"
+echo "###############################################################"
+
+mysql root_cwp -B -N -s -e "SELECT username,domain,ip_address,email,package,backup FROM user" | while read -r line
+do
+  echo "$line"
+done

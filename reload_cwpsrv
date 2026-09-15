@@ -1,0 +1,6 @@
+#!/bin/bash
+# Reload CWP panel & CWP-php
+
+sleep 10
+systemctl reload cwpsrv.service
+systemctl reload cwp-phpfpm.service

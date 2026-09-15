@@ -1,0 +1,112 @@
+#!/bin/bash
+
+# --- CONFIGURATION ---
+ALLOWED_LIB_PATHS=(
+    "/usr/lib64/lib"
+    "/usr/lib64/ld-"
+    "/usr/local/ioncube/"
+    "/usr/lib/locale/"
+    "/usr/local/cwp/"
+    "/usr/local/apache/modules/"
+    "/usr/local/lib/"
+    "/var/db/nscd/"
+    "/usr/lib64/librwctl.so"
+)
+
+ALLOWED_BINARIES=(
+    "/usr/local/cwpsrv/bin/cwpsrv"
+    "/usr/local/cwp/php71/sbin/php-fpm"
+    "/usr/local/apache/bin/httpd"
+)
+
+ALLOWED_PORTS=("2030" "2031" "2082" "2083" "2086" "2087" "2095" "2096" "9000" "2302" "2304" "8181" "8443" "80" "443")
+
+# --- INITIALIZATION ---
+if ! command -v lsof &> /dev/null; then
+    yum install -y lsof
+fi
+
+# --- FUNCTIONS ---
+
+check_process() {
+    local PROC_NAME=$1
+    local SEARCH_PATTERN=$2
+    local PID=$(ps aux | grep "$SEARCH_PATTERN" | grep -v grep | awk '{print $2}' | head -n 1)
+
+    if [ -z "$PID" ]; then
+        echo "[SKIP] Process '$PROC_NAME' not found."
+        return
+    fi
+
+    echo "------------------------------------------------------"
+    echo "[INFO] Auditing $PROC_NAME (PID: $PID)"
+    local GLOBAL_ERROR=0
+
+    # 1. Detect GHOST Files (DELETED or missing via stat)
+    local GHOST_DATA=$(lsof -p $PID -n | grep -E "DEL|\(stat:" | grep -v "/dev/zero")
+    if [ ! -z "$GHOST_DATA" ]; then
+        echo "[!!! CRITICAL ALERT !!!] Ghost files (deleted but running) found:"
+        echo "$GHOST_DATA"
+        /usr/local/cwp/php71/bin/php /usr/local/cwpsrv/htdocs/resources/admin/include/libs/notifications/cli.php --level="danger" --subject="CWP Security Audit - Ghost files" --message="Ghost files found for $PROC_NAME" >/dev/null 2>&1
+        GLOBAL_ERROR=1
+    fi
+
+    # 2. Deep Memory Audit (Čišćenje samo 9. stupca s putanjom)
+    local CURRENT_MEM=$(lsof -p $PID -n | grep "mem" | awk '{print $9}' | sed 's/(stat:.*//' | xargs)
+    
+    for FILE in $CURRENT_MEM; do
+        # Zanemari prazne unose, sistemske oznake, izbrisane reference i dev naprave
+        [[ -z "$FILE" || "$FILE" == "REG" || "$FILE" == "mem" || "$FILE" == "/" || "$FILE" == "(deleted)" ]] && continue
+        [[ "$FILE" == "("* || "$FILE" == "/dev/"* || "$FILE" == "anon_inode"* ]] && continue
+        
+        # Zanemari log datoteke
+        [[ "$FILE" == *".log"* || "$FILE" == *"/logs/"* || "$FILE" == *"/domlogs/"* ]] && continue
+
+        local MATCH=0
+        for ALLOWED in "${ALLOWED_LIB_PATHS[@]}"; do
+            if [[ "$FILE" == "$ALLOWED"* ]]; then MATCH=1; break; fi
+        done
+        for ALLOWED in "${ALLOWED_BINARIES[@]}"; do
+            if [[ "$FILE" == "$ALLOWED" ]]; then MATCH=1; break; fi
+        done
+
+        if [ $MATCH -eq 0 ]; then
+            echo "[SECURITY ALERT] Unknown/Untrusted file: $FILE"
+            /usr/local/cwp/php71/bin/php /usr/local/cwpsrv/htdocs/resources/admin/include/libs/notifications/cli.php --level="danger" --subject="CWP Security Audit - Unknown file" --message="Unknown file: $FILE" >/dev/null 2>&1
+            GLOBAL_ERROR=1
+        else
+            # Verify RPM package
+            if [[ "$FILE" == "/usr/lib64/"* && "$FILE" != "/usr/lib64/librwctl.so" ]]; then
+                if ! rpm -qf "$FILE" &>/dev/null; then
+                    echo "[!!! DANGER !!!] File in system path but NOT owned by any package: $FILE"
+                    /usr/local/cwp/php71/bin/php /usr/local/cwpsrv/htdocs/resources/admin/include/libs/notifications/cli.php --level="danger" --subject="CWP Security Audit - Unowned file" --message="Unowned file: $FILE" >/dev/null 2>&1
+                    GLOBAL_ERROR=1
+                fi
+            fi
+        fi
+    done
+
+    # 3. Port Audit
+    local CURRENT_PORTS=$(lsof -p $PID -nP | grep "LISTEN" | awk -F':' '{print $NF}' | awk '{print $1}')
+    for PORT in $CURRENT_PORTS; do
+        local PORT_MATCH=0
+        for ALLOWED in "${ALLOWED_PORTS[@]}"; do
+            if [ "$PORT" == "$ALLOWED" ]; then PORT_MATCH=1; break; fi
+        done
+        if [ $PORT_MATCH -eq 0 ]; then
+            echo "[SECURITY ALERT] Unauthorized port: $PORT"
+            /usr/local/cwp/php71/bin/php /usr/local/cwpsrv/htdocs/resources/admin/include/libs/notifications/cli.php --level="danger" --subject="CWP Security Audit - Unauthorized port" --message="Unauthorized port: $PORT" >/dev/null 2>&1
+            GLOBAL_ERROR=1
+        fi
+    done
+
+    [ $GLOBAL_ERROR -eq 0 ] && echo "[OK] $PROC_NAME looks clean."
+}
+
+# --- EXECUTION ---
+check_process "cwpsrv" "cwpsrv: master process"
+check_process "php-fpm-cwp" "php-fpm: master process .*cwpsrv.conf"
+check_process "apache" "/usr/local/apache/bin/httpd"
+
+echo "------------------------------------------------------"
+echo "[DONE] Security audit finished."

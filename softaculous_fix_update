@@ -1,0 +1,40 @@
+#!/bin/bash
+# Fix softaculous update
+
+if [ -e "/usr/local/cwpsrv/var/services/users" ];then
+
+	wget -N http://files.softaculous.com/install.sh
+	chmod 755 install.sh
+	./install.sh --update-files
+	rm -f install.sh
+
+	if [ ! -e "/usr/local/cwpsrv/var/services/users/softaculous" ];then
+		mkdir -p /usr/local/cwpsrv/var/services/users/softaculous
+	fi
+
+	if [ -e "/var/softtmp" ];then
+		chmod 777 /var/softtmp
+	fi
+
+	if [ -h "/usr/local/cwp/php" ];then
+		unlink /usr/local/cwp/php
+		ln -s /usr/local/cwp/php71/ /usr/local/cwp/php
+	fi
+
+	ln -s /usr/local/softaculous/enduser/softimages /usr/local/cwpsrv/var/services/users/softaculous/softimages
+	ln -s /usr/local/softaculous/enduser/themes /usr/local/cwpsrv/var/services/users/softaculous/themes
+
+	cp /usr/local/softaculous/cwp/index.php /usr/local/cwpsrv/var/services/users/softaculous/index.php
+	cp /usr/local/softaculous/cwp/load.php /usr/local/cwpsrv/var/services/users/softaculous/load.php
+	cp /usr/local/softaculous/cwp/softaculous.php /usr/local/cwpsrv/var/services/user_files/modules/softaculous.php
+
+	if [ -e "/usr/local/cwp/softaculous" ];then
+		rm -Rf /usr/local/cwp/softaculous
+	fi
+
+	ln -s /usr/local/cwpsrv/var/services/users/softaculous /usr/local/cwp/softaculous	
+
+	if [ ! -e "/usr/local/cwpsrv/conf.d/api.conf" ];then
+		sh /scripts/install_api
+	fi
+fi

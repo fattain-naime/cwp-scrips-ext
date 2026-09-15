@@ -1,0 +1,174 @@
+#!/bin/bash
+#
+##################################
+# CentOS Web Panel SCRIPT's
+###################################
+
+# Define functions
+# Stop or Start SQL server functions
+function sql_stop() {
+    if [ -z "`mysql -V |grep -i mariadb`" ]
+    then 
+        service mysqld stop
+    else
+        if [ $EL_VER -eq "6" ]
+            then service mysqld stop
+            else service mariadb stop
+        fi
+    fi
+killall -vw mysqld 2>/dev/null
+}
+function sql_start() {
+    if [ -z "`mysql -V |grep -i mariadb`" ]
+    then 
+        service mysqld start
+    else
+        if [ $EL_VER -eq "6" ]
+            then service mysqld start
+            else service mariadb start
+        fi
+
+    fi
+}
+
+# Password change function
+function change_pw {
+if [ "$1" == "quite" ]; then
+    PASS=`cat /dev/urandom| tr -dc 'a-zA-Z0-9' | fold -w 12|head -n1`
+else
+echo
+echo "Enter the new root password (at least 8 chars). "
+echo "Or leave it empty if you would like to generate it."
+echo "Or press CTRL+C to abort and do not touch it"
+echo
+read -p "Enter MySQL root password (NO special characters): " NEW_DB_ROOT_PASS
+if   [ -z "$NEW_DB_ROOT_PASS" ]; then
+    PASS=`cat /dev/urandom| tr -dc 'a-zA-Z0-9' | fold -w 12|head -n1`
+else
+    # Check if the password too short
+    COUNT=`echo $NEW_DB_ROOT_PASS| wc -m`
+    while [ "$COUNT" -le 8 ]
+    do
+        echo "The password TOO SHORT! Enter at least 8 chars"
+        echo "(CTRL+C to abort)"
+        read -p "Enter MySQL root password (NO special characters): " NEW_DB_ROOT_PASS
+        COUNT=`echo $NEW_DB_ROOT_PASS| wc -m`
+    done
+    # End of check
+PASS=$NEW_DB_ROOT_PASS
+fi
+fi
+EL_VER=`rpm -qa \*-release | grep -Ei "oracle|redhat|centos|cloudlinux" | cut -d"-" -f3`
+DB_ROOT_PASS=$PASS
+DB_ROOT_USER='root'
+VERSION=`mysql -V |awk '{print $5}' |sed "s/-[[:alpha:]].*$//"`
+
+echo 'Shutting down any mysql processes...'
+# Kill any mysql processes currently running
+sql_stop
+
+# Start mysql without grant tables
+if [ -z "`grep mysqld /etc/my.cnf`" ]
+ then
+    sed -i '1 a [mysqld]' /etc/my.cnf
+ if [ -z "`grep skip-networking /etc/my.cnf`" ]
+    then
+    sed -i '/\[mysqld\]/ a skip-networking' /etc/my.cnf
+ fi
+ADDED='1' # Remember the changes!
+fi
+sed -i '/\[mysqld\]/ a skip-grant-tables' /etc/my.cnf
+sql_start
+
+##    mysqld_safe --skip-grant-tables >res 2>&1 &
+echo 'Resetting password... hold on'
+# Sleep for 5 while the new mysql process loads (if get a connection error you might need to increase this.)
+sleep 5
+
+# Update root user with new password
+# check if MySQL >5.7 or MariaDB >10.4 uses #
+# > 5.7 or > 10.4
+if [ -z "`mysql -V |grep -i mariadb`" ]; then
+ if [[ "$VERSION" > "5.6.9" ]]; then
+mysql << EOF
+FLUSH PRIVILEGES;
+ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASS';
+EOF
+  # < 5.7 and/or 10.4
+  else
+   # Check if plugin mysql_native_password is uses
+   if [ "`mysql --skip-column-names -e "select plugin from mysql.user where user='root'"`" = "mysql_native_password" ]; then
+    mysql -e "UPDATE mysql.user SET Password=PASSWORD('$DB_ROOT_PASS'),Authentication_string=PASSWORD('$DB_ROOT_PASS') WHERE user='$DB_ROOT_USER'"
+    mysql -e "FLUSH PRIVILEGES"
+   else
+    mysql -e "UPDATE mysql.user SET Password=PASSWORD('$DB_ROOT_PASS') WHERE user='$DB_ROOT_USER'; FLUSH PRIVILEGES;"
+   fi
+ fi
+else
+ if [[ "$VERSION" > "10.4" ]]; then
+mysql << EOF
+FLUSH PRIVILEGES;
+ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASS';
+EOF
+  # < 5.7 and/or 10.4
+  else
+   if [ "`mysql --skip-column-names -e "select plugin from mysql.user where user='root'"`" = "mysql_native_password" ]; then
+    mysql -e "UPDATE mysql.user SET Password=PASSWORD('$DB_ROOT_PASS'),Authentication_string=PASSWORD('$DB_ROOT_PASS') WHERE user='$DB_ROOT_USER'"
+    mysql -e "FLUSH PRIVILEGES"
+   else
+    mysql -e "UPDATE mysql.user SET Password=PASSWORD('$DB_ROOT_PASS') WHERE user='$DB_ROOT_USER'; FLUSH PRIVILEGES;"
+   fi
+ fi
+fi
+
+echo 'Cleaning up...'
+# Kill the insecure mysql process and remove changes from config
+sql_stop
+
+if [[ "$ADDED" = 1 ]]; then
+    sed -i '/\[mysqld\]/d' /etc/my.cnf
+    sed -i '/skip-networking/d' /etc/my.cnf
+fi
+sed -i '/skip-grant-tables/d' /etc/my.cnf
+
+# Starting mysql again
+# recreate /root/.my.cnf
+cat > /root/.my.cnf <<EOF
+[client]
+password=$DB_ROOT_PASS
+user=root
+EOF
+chmod 600 /root/.my.cnf
+sed -i "s/db_pass.*/db_pass = '$DB_ROOT_PASS';/g" /usr/local/cwpsrv/htdocs/resources/admin/include/db_conn.php
+echo
+echo "Password reset has been completed"
+echo
+echo "New MySQL root password: $DB_ROOT_PASS"
+echo
+echo "Remember to store this password safely!"
+echo
+sql_start
+}
+# All functions defined
+# Start script 
+
+if [ ! -n "$1" ]; then 
+change_pw
+exit 0
+fi
+
+# check for quite option
+while [ -n "$1" ]
+do
+case "$1" in
+-q| --quite)
+        change_pw "quite" # no asking about password changing
+;;
+-h| --help| *)
+        echo "Usage $0 -q: "
+        echo "-q, --quite - script will change password with no question"
+;;
+esac
+shift
+done
+
