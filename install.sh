@@ -82,11 +82,19 @@ while IFS= read -r script; do
         continue
     fi
 
+    # Validate script name against a safe pattern (blocks argv flag smuggling
+    # and path traversal from untrusted API-supplied filenames)
+    if ! [[ "$script" =~ ^[a-zA-Z0-9._-]+$ ]] || [[ "$script" == -* ]]; then
+        log_warn "Skipping unsafe script name: $script"
+        ((FAILED++))
+        continue
+    fi
+
     log_info "Downloading $script ..."
-    if curl -fsSL "$RAW_BASE/$script" -o "$TARGET_DIR/$script"; then
-        chmod +x "$TARGET_DIR/$script"
+    if curl -fsSL "$RAW_BASE/$script" -o -- "$TARGET_DIR/$script"; then
+        chmod +x -- "$TARGET_DIR/$script"
         # Syntax check
-        if bash -n "$TARGET_DIR/$script" 2>/dev/null; then
+        if bash -n -- "$TARGET_DIR/$script" 2>/dev/null; then
             log_ok "$script"
             ((SUCCESS++))
         else
