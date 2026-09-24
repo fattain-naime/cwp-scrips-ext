@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install shellcheck
         run: |
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Verify required files
         run: |
@@ -106,7 +106,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Run install.sh in dry-run mode
         run: |
@@ -128,7 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Scan for hardcoded secrets
         uses: trufflesecurity/trufflehog@main
@@ -156,16 +156,16 @@ jobs:
             echo "⚠️ Found $suspicious uses of eval:"
             grep -rn "eval " --include="*.sh" . | grep -v "# "
           fi
-
-notifications:
-  name: Notify on Failure
-  runs-on: ubuntu-latest
-  needs: [syntax-check, validate-structure, install-test, security-scan]
-  if: failure()
-  steps:
-    - name: Send failure notification
-      run: |
-        echo "❌ CI pipeline failed for commit ${{ github.sha }}"
-        echo "Repository: ${{ github.repository }}"
-        echo "Branch: ${{ github.ref }}"
-        echo "Run: ${{ github.run_id }}"
+          
+#	run-name:
+#	  name: Notify on Failure
+#		runs-on: ubuntu-latest
+#		needs: [syntax-check, validate-structure, install-test, security-scan]
+#  if: failure()
+#  steps:
+#    - name: Send failure notification
+#      run: |
+#        echo "❌ CI pipeline failed for commit ${{ github.sha }}"
+#        echo "Repository: ${{ github.repository }}"
+#        echo "Branch: ${{ github.ref }}"
+#        echo "Run: ${{ github.run_id }}"
