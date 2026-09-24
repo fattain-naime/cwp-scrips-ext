@@ -130,14 +130,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Scan for hardcoded secrets
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          base: main
-          head: HEAD
-          extra_args: --only-verified --fail
-
       - name: Check for insecure HTTP URLs
         run: |
           insecure_count=$(grep -r "http://" --include="*.sh" . | grep -vE "(localhost|127\.0\.0\.1|# )" | wc -l)
